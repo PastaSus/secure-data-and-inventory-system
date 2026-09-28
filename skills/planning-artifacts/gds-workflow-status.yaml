@@ -1,0 +1,11 @@
+# GDS Workflow Status
+# Minimal tracker — create-architecture was run without the gds-workflow-status skill installed.
+
+workflows:
+  create-brief: 'skills/planning-artifacts/briefs/brief-secure-data-and-inventory-system-2026-09-28/brief.md'
+  create-gdd: 'skills/planning-artifacts/gdd.md'
+  create-architecture: 'skills/planning-artifacts/game-architecture.md'
+  create-epics: 'skills/planning-artifacts/epics.md'
+  check-readiness: 'skills/planning-artifacts/implementation-readiness-report-2026-09-28.md'
+  sprint-planning: 'skills/implementation-artifacts/sprint-status.yaml'
+  create-story: 'skills/implementation-artifacts/1-1-project-structure-on-the-existing-scaffold.md'

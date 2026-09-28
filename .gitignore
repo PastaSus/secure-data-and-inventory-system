@@ -1,0 +1,14 @@
+# Project place file
+/secure-data-and-inventory-system.rbxlx
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
+
+sourcemap.json
+
+# BMAD-METHOD install artifacts
+/.agents/
+/.cline/
+/.opencode/
+/_bmad/

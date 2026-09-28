@@ -1,0 +1,85 @@
+# generated: 2026-09-28
+# last_updated: 2026-09-28
+# project: secure-data-and-inventory-system
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {implementation_artifacts}
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-09-28
+last_updated: 2026-09-28
+project: secure-data-and-inventory-system
+project_key: NOKEY
+tracking_system: file-system
+story_location: '{implementation_artifacts}'
+
+development_status:
+  # Epic 1: Safe Join — My Collection Survives
+  epic-1: in-progress
+  1-1-project-structure-on-the-existing-scaffold: ready-for-dev
+  1-2-session-locked-profile-load: backlog
+  1-3-join-gate-never-play-on-defaulted-data: backlog
+  1-4-validated-remote-pipeline-and-read-only-mirror: backlog
+  1-5-main-menu-entry: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Dive & Stow — The Core Loop Works
+  epic-2: backlog
+  2-1-seeded-procedural-room-assembly: backlog
+  2-2-rarity-table-loot-rolls: backlog
+  2-3-pack-capacity-and-grab: backlog
+  2-4-extraction-voluntary-and-forced: backlog
+  2-5-atomic-stow-commit: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Vault & Sets — The Trophy Case Fills Up
+  epic-3: backlog
+  3-1-vault-browse-and-sort: backlog
+  3-2-set-definitions-and-completion-detection: backlog
+  3-3-set-completion-celebration-and-capacity-grant: backlog
+  3-4-per-item-provenance-display: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Safe Trading — Trade Dupes with Strangers
+  epic-4: backlog
+  4-1-trade-invitation-and-dual-confirmation: backlog
+  4-2-atomic-dual-lock-trade-commit: backlog
+  4-3-trade-receipts: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Shell & Content — The Game Feels Finished
+  epic-5: backlog
+  5-1-shell-navigation-wiring: backlog
+  5-2-content-integration: backlog
+  5-3-audio-pass: backlog
+  5-4-integrity-presented-as-a-feature: backlog
+  5-5-playtest-readiness-and-quality-gate: backlog
+  epic-5-retrospective: optional
