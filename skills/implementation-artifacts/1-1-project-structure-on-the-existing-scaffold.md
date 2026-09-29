@@ -4,7 +4,7 @@ baseline_commit: 329154796d3926951d6cfba00c322ba18387ab06
 
 # Story 1.1: Project Structure on the Existing Scaffold
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -33,9 +33,10 @@ so that every later story lands files in the right place and quality gates run f
 - [x] Create the directory skeleton (AC: 2)
   - [x] `src/shared/Config/`, `src/server/Services/`, `src/client/Controllers/`, `tests/`
   - [x] Note: empty dirs are invisible to Rojo builds (only on-disk) — that is expected; do NOT add placeholder `.luau` files just to make folders appear
+    - **Corrected 2026-09-29 (code review):** the "invisible to Rojo builds" half is wrong. Rojo 7.7.0 *does* emit empty directories as `Folder` instances — `ReplicatedStorage.Shared.Config`, `ServerScriptService.Server.Services`, `StarterPlayerScripts.Client.Controllers` all appear in the built place. Only `rojo sourcemap` omits them (so `luau-lsp` can't resolve them yet). See Debug Log #4.
 - [x] Verify build (AC: 1)
   - [x] `PATH="$HOME/.aftman/bin:$PATH" rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`
-  - [x] Open the built `.rbxlx` in Roblox Studio and confirm it starts (Baseplate + hello-world output)
+  - [ ] Open the built `.rbxlx` in Roblox Studio and confirm it starts (Baseplate + hello-world output)
 - [x] Verify lint/format gates (AC: 1, 4)
   - [x] `PATH="$HOME/.aftman/bin:$PATH" stylua --check src/` → zero findings
   - [x] `PATH="$HOME/.aftman/bin:$PATH" selene src/` → zero findings
@@ -44,6 +45,31 @@ so that every later story lands files in the right place and quality gates run f
   - [x] `wally.toml` / `wally.lock` / ProfileStore → Story 1.2
   - [x] `tests/*.spec.luau` content and TestEZ runner → Story 1.2
   - [x] Deleting `src/shared/Hello.luau` → when services land (architecture note), not here
+
+### Review Findings
+
+_Code review 2026-09-29 · diff `3291547..64db392` · 3 files, +154/−24 · inline three-layer pass (Blind Hunter / Edge Case Hunter / Acceptance Auditor) — see note on review independence below._
+
+- [x] [Review][Decision] **AC1's "opens in Roblox Studio" is ticked complete while the story says it is outstanding** — line 38 marks `- [x] Open the built .rbxlx in Roblox Studio and confirm it starts` done, but Completion Notes state *"Opening it in Studio is a human step still outstanding"*. Both cannot be true. Either untick it and hold the story open until a human launches Studio, or launch it and close it. [story:38 vs story:175]
+- [x] [Review][Decision] **The four directories credited to AC2 are in no commit** — git cannot track empty directories, so `src/shared/Config/`, `src/server/Services/`, `src/client/Controllers/` and `tests/` exist only on disk and will not survive a clone; `tests/` is additionally absent from `default.project.json`, so it never appears in a build. AC2 is therefore unverifiable from the artifact under review. Choose: commit `.gitkeep` placeholders (verified Rojo-safe — build exit 0, no warnings), or accept on-disk-only and let Story 1.2 materialise them. [commit 64db392 / repo-wide]
+- [x] [Review][Patch] **CRLF breaks the stylua quality gate on any fresh checkout** — `core.autocrlf=true` with no `.gitattributes` while `stylua.toml` pins `line_endings = "Unix"`. Proven: a CRLF `.luau` file makes `stylua --check src/` exit 1. Trigger is any clone or `git checkout`; consequence is AC4/NFR8 failing on a clean machine. [stylua.toml:2; repo config]
+- [x] [Review][Patch] **`wally install` fails — the documented Setup Commands are broken** — proven: `failed to open file .\wally.toml`, exit 1. The architecture's Development Environment commands and `AGENTS.md`'s command list are now inconsistent with repo state, so a fresh agent following them hits a hard error before Story 1.2 lands `wally.toml`. [game-architecture.md#Development Environment; AGENTS.md:22-24]
+- [x] [Review][Patch] **`rojo serve` ↔ `aftman install` Windows file-lock gotcha is recorded only in a story artifact** — the `os error 32` root cause and its fix live in this story's Debug Log, which the next agent has no reason to read. It belongs in `AGENTS.md`, where the build/verify commands are documented. Without it, Story 1.2 plausibly repeats the failure. [AGENTS.md:20-24]
+- [x] [Review][Patch] **`AGENTS.md` claim "Toolchain lives in `~/.aftman/bin` — NOT on PATH" is stale/incorrect** — the User PATH ends with `C:\Users\Administrator\.aftman\bin`, and a simulated fresh environment resolves `rojo`/`wally` with no prefix. The prefix is still harmless as a defensive habit, but the factual claim misleads. [AGENTS.md:22]
+- [ ] [Review][Patch] **`Agent Model Used` does not identify a model, defeating the field's purpose** — the entry records that the agent declined to guess, but the field exists for traceability of which model implemented the story. Record the actual identifier. [story:108]
+- [x] [Review][Patch] **Dev Note contradicts measured Rojo behaviour and was not corrected in place** — the task note asserts "empty dirs are invisible to Rojo builds (only on-disk)", but Rojo 7.7.0 emits them as `Folder` instances (only `rojo sourcemap` omits them). The discrepancy is logged but the wrong note remains in the spec, so Story 1.2 inherits it. [story:35 vs story:181]
+- [x] [Review][Patch] **`aftman.toml` has no trailing newline** — pre-existing (diff shows `\ No newline at end of file` on both sides), but this story appended to the file, so the condition persists and compounds with each addition. [aftman.toml:10]
+- [x] [Review][Defer] **No reproducible verification artifact — all acceptance evidence is prose** — deferred, architecture decision 16 explicitly accepts "no CI yet"; revisit at Story 5.5. [story:156-204]
+- [x] [Review][Defer] **`sprint-status.yaml` stores `last_updated` twice** — deferred, pre-existing; the file is generated by `gds-sprint-planning` and its structure is owned by BMad tooling. [sprint-status.yaml:2,38]
+
+**Resolutions applied 2026-09-29** (fast path, reviewer-recommended):
+
+- **Decision 1 → unticked the Studio subtask.** The story is held at `in-progress` until a human launches `secure-data-and-inventory-system.rbxlx` in Studio once; that single confirmation closes AC1.
+- **Decision 2 → committed `.gitkeep` to all four directories.** Rojo-safety re-verified with the files present: `rojo build` exit 0, no warnings, `stylua`/`selene` still zero findings. AC2 is now durable across a fresh clone.
+- **Patches 1, 2, 3, 4, 6, 7 applied** — see Change Log.
+- **Patch 5 not applied — blocked on human input.** `Agent Model Used` still cannot name a model: the agent runtime exposes no model identifier (checked `env`; only `CLINE_ACTIVE` is present, no model variable). This needs the identifier supplied by the user, so it remains open.
+
+> **Review independence caveat:** the three layers were run inline in the same session and same model that implemented this story, because `bmad-review-adversarial-general` and `bmad-review-edge-case-hunter` are not installed and no subagent runner was available. Step 2's fallback prompt files were generated at `review-prompts/` for a genuinely independent pass. Treat these findings as **lower-authority self-review**; a different-LLM pass may find more. Findings marked "proven" were reproduced with live commands, not inferred.
 
 ## Dev Notes
 
@@ -237,3 +263,4 @@ Recommendation: **leave as-is**. The only durable gap is `tests/` (never in a bu
 | Date | Change |
 | --- | --- |
 | 2026-09-29 | Story implemented and marked ready for review. Added `wally = "UpliftGames/wally@0.3.2"` to `aftman.toml` (with `aftman trust UpliftGames/wally` then `aftman install`, unblocked by stopping the VS Code Rojo extension's `rojo serve`, which held `rojo.exe` open). Created `src/shared/Config/`, `src/server/Services/`, `src/client/Controllers/`, and `tests/` as empty directories. Verified `rojo build`, `stylua --check src/`, and `selene src/` all pass. |
+| 2026-09-29 | Code review: 2 `decision_needed`, 7 `patch`, 2 `defer`, 4 dismissed. Applied both decisions (unticked the unperformed Studio-launch subtask → story back to `in-progress`; added `.gitkeep` to all four directories) and 6 of 7 patches: new `.gitattributes` pinning `eol=lf` (proven fixes a CRLF-induced `stylua --check` failure), `AGENTS.md` corrections plus a durable gotchas section outside the managed block, corrected the wrong Rojo Dev Note, and added the missing trailing newline to `aftman.toml`. Patch 5 (`Agent Model Used` identifier) blocked — no model ID exposed to the runtime. |

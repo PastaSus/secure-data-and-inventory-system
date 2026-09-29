@@ -1,0 +1,15 @@
+# Normalize text files to LF in the working tree, on every machine.
+#
+# Why this file exists: `stylua.toml` pins `line_endings = "Unix"`, so a CRLF working copy makes
+# `stylua --check src/` fail. On Windows, git's `core.autocrlf=true` default would convert LF to
+# CRLF on checkout, silently breaking that quality gate on a fresh clone.
+#
+# Verified 2026-09-29: a CRLF .luau file makes `stylua --check src/` exit 1. With `eol=lf` the
+# working tree stays LF and the gate holds.
+* text=auto eol=lf
+
+# Roblox place/model files are binary-ish XML — never mangle them.
+*.rbxl binary
+*.rbxlx binary
+*.rbxm binary
+*.rbxmx binary

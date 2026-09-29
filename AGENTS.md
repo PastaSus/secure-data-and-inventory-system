@@ -1,7 +1,7 @@
 # Agent Instructions
 
 <!-- bmad:context -->
-<!-- Verified 2026-09-28 against initial state (no commits yet). Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-09-29 (2 commits). Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## secure-data-and-inventory-system
 
@@ -19,9 +19,10 @@ Roblox secure-data + inventory system. Luau, Rojo 7.7.0 via aftman, stylua + sel
 
 ## Running and verifying
 
-- `rojo`, `aftman`, `stylua`, `selene` live in `~/.aftman/bin`, which is NOT on PATH — prefix every invocation: `PATH="$HOME/.aftman/bin:$PATH" <cmd>`.
+- Tools (`aftman`, `rojo`, `stylua`, `selene`, `wally`) are installed under `~/.aftman/bin`. That directory is on this machine's User PATH, so bare commands work in a freshly started shell — but any process started before the PATH entry existed (e.g. a long-running editor) inherits a stale environment. If a tool reports "command not found", prefix it: `PATH="$HOME/.aftman/bin:$PATH" <cmd>`.
 - Build: `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`.
 - Format check `stylua --check src/` and lint `selene src/` must both pass before review.
+- `wally install` cannot run until Story 1.2 adds `wally.toml`; it currently fails with `failed to open file .\wally.toml`.
 
 ## Conventions that differ from defaults
 
@@ -29,3 +30,19 @@ Roblox secure-data + inventory system. Luau, Rojo 7.7.0 via aftman, stylua + sel
 - Requires are Roblox instance-based (`require(script.Parent.X)`); there is deliberately no `.luaurc`.
 
 <!-- /bmad:context -->
+
+## Git workflow
+
+Durable — deliberately outside the managed block above, which is regenerated on refresh.
+
+- **Actual code changes go on a conventional branch**, e.g. `feat/`, `fix/`, `chore/`, `docs/` plus a short slug: `chore/story-1-2-wally-profilestore`.
+- **Commit atomically** — one logical change per commit, Conventional Commits (`type: subject` with a bullet body), matching the existing history.
+- Documentation- and tracking-only changes may land directly on the default branch.
+
+## Windows / toolchain gotchas
+
+Durable — these cost a real dev session on 2026-09-29; keep them where the next agent will look.
+
+- **Stop `rojo serve` before running `aftman install`.** Aftman's `~/.aftman/bin/*.exe` entries are copies of `aftman.exe` that dispatch by filename, so `aftman install` rewrites all of them. A running `rojo serve` (e.g. the VS Code Rojo extension) holds `rojo.exe` open and the install dies with `os error 32`, aborting before later tools are even downloaded. Order: stop serve → `aftman install` → restart serve.
+- **`.gitattributes` pins `eol=lf` on purpose.** `stylua.toml` requires Unix line endings; without this file, Windows' default `core.autocrlf=true` converts to CRLF on checkout and `stylua --check src/` fails (verified: exit 1) on any fresh clone.
+- **Roblox Studio cannot be driven from an agent session.** `rojo build` output can be verified structurally (well-formed XML, expected instances, script sources), but "opens in Studio" is always a human confirmation step.
