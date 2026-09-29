@@ -4,7 +4,7 @@ baseline_commit: 329154796d3926951d6cfba00c322ba18387ab06
 
 # Story 1.1: Project Structure on the Existing Scaffold
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -36,7 +36,7 @@ so that every later story lands files in the right place and quality gates run f
     - **Corrected 2026-09-29 (code review):** the "invisible to Rojo builds" half is wrong. Rojo 7.7.0 *does* emit empty directories as `Folder` instances — `ReplicatedStorage.Shared.Config`, `ServerScriptService.Server.Services`, `StarterPlayerScripts.Client.Controllers` all appear in the built place. Only `rojo sourcemap` omits them (so `luau-lsp` can't resolve them yet). See Debug Log #4.
 - [x] Verify build (AC: 1)
   - [x] `PATH="$HOME/.aftman/bin:$PATH" rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`
-  - [ ] Open the built `.rbxlx` in Roblox Studio and confirm it starts (Baseplate + hello-world output)
+  - [x] Open the built `.rbxlx` in Roblox Studio and confirm it starts (Baseplate + hello-world output) — verified by user 2026-09-29 (place opens, hello prints, Play runs clean)
 - [x] Verify lint/format gates (AC: 1, 4)
   - [x] `PATH="$HOME/.aftman/bin:$PATH" stylua --check src/` → zero findings
   - [x] `PATH="$HOME/.aftman/bin:$PATH" selene src/` → zero findings
@@ -56,7 +56,7 @@ _Code review 2026-09-29 · diff `3291547..64db392` · 3 files, +154/−24 · inl
 - [x] [Review][Patch] **`wally install` fails — the documented Setup Commands are broken** — proven: `failed to open file .\wally.toml`, exit 1. The architecture's Development Environment commands and `AGENTS.md`'s command list are now inconsistent with repo state, so a fresh agent following them hits a hard error before Story 1.2 lands `wally.toml`. [game-architecture.md#Development Environment; AGENTS.md:22-24]
 - [x] [Review][Patch] **`rojo serve` ↔ `aftman install` Windows file-lock gotcha is recorded only in a story artifact** — the `os error 32` root cause and its fix live in this story's Debug Log, which the next agent has no reason to read. It belongs in `AGENTS.md`, where the build/verify commands are documented. Without it, Story 1.2 plausibly repeats the failure. [AGENTS.md:20-24]
 - [x] [Review][Patch] **`AGENTS.md` claim "Toolchain lives in `~/.aftman/bin` — NOT on PATH" is stale/incorrect** — the User PATH ends with `C:\Users\Administrator\.aftman\bin`, and a simulated fresh environment resolves `rojo`/`wally` with no prefix. The prefix is still harmless as a defensive habit, but the factual claim misleads. [AGENTS.md:22]
-- [ ] [Review][Patch] **`Agent Model Used` does not identify a model, defeating the field's purpose** — the entry records that the agent declined to guess, but the field exists for traceability of which model implemented the story. Record the actual identifier. [story:108]
+- [x] [Review][Patch] **`Agent Model Used` does not identify a model, defeating the field's purpose** — CLOSED 2026-09-29 as unrecoverable: implementation authorship predates model tracking and no identifier was left behind; recorded as unknown rather than guessed. [story:108]
 - [x] [Review][Patch] **Dev Note contradicts measured Rojo behaviour and was not corrected in place** — the task note asserts "empty dirs are invisible to Rojo builds (only on-disk)", but Rojo 7.7.0 emits them as `Folder` instances (only `rojo sourcemap` omits them). The discrepancy is logged but the wrong note remains in the spec, so Story 1.2 inherits it. [story:35 vs story:181]
 - [x] [Review][Patch] **`aftman.toml` has no trailing newline** — pre-existing (diff shows `\ No newline at end of file` on both sides), but this story appended to the file, so the condition persists and compounds with each addition. [aftman.toml:10]
 - [x] [Review][Defer] **No reproducible verification artifact — all acceptance evidence is prose** — deferred, architecture decision 16 explicitly accepts "no CI yet"; revisit at Story 5.5. [story:156-204]
@@ -264,3 +264,4 @@ Recommendation: **leave as-is**. The only durable gap is `tests/` (never in a bu
 | --- | --- |
 | 2026-09-29 | Story implemented and marked ready for review. Added `wally = "UpliftGames/wally@0.3.2"` to `aftman.toml` (with `aftman trust UpliftGames/wally` then `aftman install`, unblocked by stopping the VS Code Rojo extension's `rojo serve`, which held `rojo.exe` open). Created `src/shared/Config/`, `src/server/Services/`, `src/client/Controllers/`, and `tests/` as empty directories. Verified `rojo build`, `stylua --check src/`, and `selene src/` all pass. |
 | 2026-09-29 | Code review: 2 `decision_needed`, 7 `patch`, 2 `defer`, 4 dismissed. Applied both decisions (unticked the unperformed Studio-launch subtask → story back to `in-progress`; added `.gitkeep` to all four directories) and 6 of 7 patches: new `.gitattributes` pinning `eol=lf` (proven fixes a CRLF-induced `stylua --check` failure), `AGENTS.md` corrections plus a durable gotchas section outside the managed block, corrected the wrong Rojo Dev Note, and added the missing trailing newline to `aftman.toml`. Patch 5 (`Agent Model Used` identifier) blocked — no model ID exposed to the runtime. |
+| 2026-09-29 | User verified the outstanding Studio-open step in Studio (place opens, hello-world prints, Play runs clean) → subtask checked, story `in-progress` → `done`. Review Patch 5 closed as unrecoverable (authorship predates model tracking, recorded unknown). |
