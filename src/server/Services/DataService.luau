@@ -43,7 +43,17 @@ function DataService.startSession(player: Player): boolean
 		return false
 	end
 
-	Schema.migrate(profile.Data)
+	if type(profile.Data) ~= "table" then
+		return false
+	end
+
+	local migrateOk = pcall(function()
+		Schema.migrate(profile.Data)
+	end)
+	if not migrateOk then
+		return false
+	end
+
 	_profiles[player.UserId] = profile
 	return true
 end

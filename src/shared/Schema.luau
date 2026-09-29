@@ -22,7 +22,11 @@ function Schema.defaultProfile(): Types.ProfileData
 end
 
 local function isPositiveInteger(value: any): boolean
-	return type(value) == "number" and value > 0 and math.floor(value) == value
+	return type(value) == "number" and value > 0 and value < math.huge and math.floor(value) == value
+end
+
+local function isUsableTimestamp(value: any): boolean
+	return type(value) == "number" and value == value and value >= 0 and value < math.huge
 end
 
 -- migrate normalizes in place AND returns the table, so callers can use
@@ -35,9 +39,12 @@ function Schema.migrate(data: any): Types.ProfileData
 
 	-- schemaVersion: coerce garbage to 0, clamp the future down.
 	-- Forward-only chain below then lifts everything to current, so the
-	-- stored version never decreases on a real profile.
+	-- stored version never decreases on a real profile. (Review decision
+	-- 2026-09-29: clamping an impossible future version is corruption
+	-- repair, not a backward migration — no newer client can exist.)
+	-- `version ~= version` catches NaN, which defeats every comparison.
 	local version = data.schemaVersion
-	if type(version) ~= "number" or version < 0 then
+	if type(version) ~= "number" or version ~= version or version < 0 then
 		version = 0
 	end
 	if version > Schema.CURRENT_SCHEMA_VERSION then
@@ -54,9 +61,15 @@ function Schema.migrate(data: any): Types.ProfileData
 
 	-- vault: compact {[itemDefId]: count}; preserve valid pairs, drop
 	-- anything malformed (non-integer ids, non-positive counts).
+	-- String keys are coerced: a DataStore/JSON round-trip stringifies
+	-- numeric keys, and dropping them would permanently delete items.
 	local cleanVault: { [number]: number } = {}
 	if type(data.vault) == "table" then
-		for itemDefId, count in pairs(data.vault) do
+		for rawId, count in pairs(data.vault) do
+			local itemDefId = rawId
+			if type(rawId) == "string" then
+				itemDefId = tonumber(rawId)
+			end
 			if isPositiveInteger(itemDefId) and isPositiveInteger(count) then
 				cleanVault[itemDefId] = count
 			end
@@ -65,13 +78,15 @@ function Schema.migrate(data: any): Types.ProfileData
 	data.vault = cleanVault
 
 	-- provenance: keep well-formed entries only; oldest rotates out
-	-- (ADR-004), so trim from the front down to the cap.
+	-- (ADR-004). `pairs` (not `ipairs`) so a sparse array keeps everything
+	-- past a hole; sorting by acquiredAt makes the trim keep the newest,
+	-- with dateless entries (0) first out.
 	local cleanProvenance: { Types.ProvenanceEntry } = {}
 	if type(data.provenance) == "table" then
-		for _, entry in ipairs(data.provenance) do
+		for _, entry in pairs(data.provenance) do
 			if type(entry) == "table" and isPositiveInteger(entry.itemDefId) and type(entry.source) == "string" then
 				local acquiredAt = 0
-				if type(entry.acquiredAt) == "number" then
+				if isUsableTimestamp(entry.acquiredAt) then
 					acquiredAt = entry.acquiredAt
 				end
 				table.insert(cleanProvenance, {
@@ -82,6 +97,9 @@ function Schema.migrate(data: any): Types.ProfileData
 			end
 		end
 	end
+	table.sort(cleanProvenance, function(a, b)
+		return a.acquiredAt < b.acquiredAt
+	end)
 	while #cleanProvenance > Schema.MAX_PROVENANCE_ENTRIES do
 		table.remove(cleanProvenance, 1)
 	end

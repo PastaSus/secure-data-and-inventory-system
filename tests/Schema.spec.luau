@@ -96,5 +96,74 @@ return function()
 			expect(migrated.provenance[1].itemDefId).to.equal(11)
 			expect(migrated.provenance[50].itemDefId).to.equal(60)
 		end)
+
+		it("coerces stringified numeric vault keys from a DataStore round-trip", function()
+			local migrated = Schema.migrate({
+				vault = { ["1"] = 3, ["abc"] = 2 } :: any,
+				capacity = 8,
+			})
+
+			expect(migrated.vault[1]).to.equal(3)
+			expect(next(migrated.vault, 1)).to.equal(nil)
+		end)
+
+		it("repairs a NaN schemaVersion to current", function()
+			local migrated = Schema.migrate({
+				schemaVersion = 0 / 0,
+				vault = { [3] = 2 },
+				capacity = 8,
+			})
+
+			expect(migrated.schemaVersion).to.equal(1)
+			expect(migrated.vault[3]).to.equal(2)
+		end)
+
+		it("repairs an infinite capacity to start capacity", function()
+			local migrated = Schema.migrate({
+				vault = {},
+				capacity = math.huge,
+			})
+
+			expect(migrated.capacity).to.equal(8)
+		end)
+
+		it("keeps provenance past a sparse-array hole", function()
+			local migrated = Schema.migrate({
+				provenance = {
+					[1] = { itemDefId = 1, source = "dive", acquiredAt = 1 },
+					[3] = { itemDefId = 3, source = "dive", acquiredAt = 3 },
+				},
+				capacity = 8,
+			})
+
+			expect(#migrated.provenance).to.equal(2)
+		end)
+
+		it("keeps the newest entries when input is unsorted", function()
+			local input: { [string]: any } = { capacity = 8, provenance = {} }
+			for i = 60, 1, -1 do
+				table.insert(input.provenance, { itemDefId = i, source = "dive", acquiredAt = i })
+			end
+
+			local migrated = Schema.migrate(input)
+
+			expect(#migrated.provenance).to.equal(50)
+			expect(migrated.provenance[1].itemDefId).to.equal(11)
+			expect(migrated.provenance[50].itemDefId).to.equal(60)
+		end)
+
+		it("normalizes unusable acquiredAt values to 0", function()
+			local migrated = Schema.migrate({
+				provenance = {
+					{ itemDefId = 1, source = "dive", acquiredAt = 0 / 0 },
+					{ itemDefId = 2, source = "dive", acquiredAt = -5 },
+				},
+				capacity = 8,
+			})
+
+			expect(#migrated.provenance).to.equal(2)
+			expect(migrated.provenance[1].acquiredAt).to.equal(0)
+			expect(migrated.provenance[2].acquiredAt).to.equal(0)
+		end)
 	end)
 end

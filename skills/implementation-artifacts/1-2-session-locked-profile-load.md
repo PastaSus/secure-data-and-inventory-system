@@ -40,6 +40,26 @@ so that my data survives rejoins and can never be silently reset.
   - [x] 4.2 Run full gates: `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`, `stylua --check src/`, `selene src/` — all green; record TestEZ run method/result in Completion Notes (Studio runner; no CI exists)
 - [x] Task 5 — Close-out
   - [x] 5.1 Update Dev Agent Record (model, debug log, completion notes), File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-2-session-locked-profile-load: review`
+
+### Review Findings
+
+_Code review 2026-09-29 · diff `master...HEAD` (branch `feat/story-1-2-session-locked-profile-load`, 5 commits, 13 files, +602/−2) · three-layer pass (Blind Hunter / Edge Case Hunter / Acceptance Auditor) via parallel subagents, findings verified against the vendored ProfileStore source before triage._
+
+- [x] [Review][Decision] **Future-version clamp decreases `schemaVersion`, contradicting AC3 "never decreases it"** — RESOLVED 2026-09-29: Option 1 (bless the clamp as corruption repair). Single-version live game ⇒ a stored version above current cannot be a genuine newer client; failing closed would turn one corrupt metadata field into a denied join for no integrity gain, since the stamp is unrecoverable either way. AC3's "never decreases" is read as "real profiles only move forward"; impossible versions are repaired, not migrated. [Schema.luau:43-45; spec "repairs corrupt fields..."]
+- [x] [Review][Patch] **Non-table `profile.Data` is repaired into a value nobody keeps** — applied 2026-09-29: `startSession` returns `false` when `profile.Data` is not a table. [DataService.luau:46]
+- [x] [Review][Patch] **`migrate` throws past the "false on ANY failure" contract** — applied 2026-09-29: migrate call wrapped in `pcall`, failure returns `false`. [DataService.luau:46]
+- [x] [Review][Patch] **Stringified numeric vault keys are wiped as malformed** — applied 2026-09-29: string keys coerced via `tonumber()` before validation; spec case added. [Schema.luau:60]
+- [x] [Review][Patch] **`ipairs` truncates provenance at the first hole and "newest 50" is input-order only** — applied 2026-09-29: `pairs` collection + `acquiredAt` sort + front trim; sparse-array and unsorted-newest spec cases added. [Schema.luau:71-88]
+- [x] [Review][Patch] **Non-finite numbers slip through validation into saved data** — applied 2026-09-29: `isPositiveInteger` rejects `inf` (`< math.huge`), version coercion catches `NaN` (`version ~= version`), new `isUsableTimestamp` guards `acquiredAt`; NaN-version, inf-capacity, bad-timestamp spec cases added. [Schema.luau:24,40,73,92]
+- [x] [Review][Patch] **File List omits `AGENTS.md` and miscounts spec coverage (7 vs 8 `it` blocks)** — applied 2026-09-29: `AGENTS.md` line added, counts corrected to 14 `it` blocks (8 original + 6 new). [story File List; spec file]
+- [x] [Review][Defer] **Session lock is never released; double `startSession` overwrites** — deferred, 1.3 owns it: no `EndSession`/removal exists and `_profiles[id] = profile` stores unconditionally, but the spec's Scope Guard assigns all release/wiring to Story 1.3's join gate and nothing calls `startSession` yet. [DataService.luau:47]
+- [x] [Review][Defer] **`Cancel` does not bound a hung DataStore call** — deferred, 1.3 owns it: `Cancel` fires only at ProfileStore yield points, so an outage still hangs `startSession`; timeout/kick policy belongs to 1.3's join gate. [DataService.luau:34-40]
+- [x] [Review][Defer] **`ProfileStore.New` at require time is outside the `pcall`** — deferred, revisit in 1.3: a throwing `New` would crash requirers instead of returning `false`, but args are constants and DataStore errors surface inside `StartSessionAsync` (already protected). [DataService.luau:17]
+- [x] [Review][Defer] **Capacity has no upper bound** — deferred, Epic 3 owns it: any positive integer persists, but no design max exists anywhere, so any bound invented here would be arbitrary; Epic 3 (set-completion capacity grants) sets the ceiling. [Schema.luau:92-94]
+- [x] [Review][Defer] **TestEZ specs never executed** — deferred, human step: specs are written and statically green but require Studio's TestEZ runner; the story cannot move to `done` until a human runs them and pastes results. [tests/Schema.spec.luau]
+- [x] [Review][Defer] **No vault/provenance payload bounds (O(n²) front-trim)** — deferred, no path: data comes from DataStore/template (server-written), so no attacker can inject a 100k-entry payload in this story's scope. [Schema.luau:85-87]
+
+_Dismissed as noise (7): shared-template aliasing (verified: ProfileStore hard-copies the template via `DeepCopyTable`); `Types.luau return nil` (idiomatic types-only module); unknown-field passthrough breaking serialization (DataStore-sourced data is JSON-safe by construction); `DataService` unrequirable in the test place (by design — pure-logic specs only); "`ServerPackages` absent on disk" (false — vendored and present); ``any``-typed interop boundaries (deliberate); Rojo/wally "split-brain" (false — `wally.lock` is in the diff)._
 ## Dev Notes
 
 ### Technical Requirements
@@ -213,7 +233,7 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 **Definition of Done**
 
 - Tasks/subtasks: all complete
-- Tests: TestEZ specs written for pure migration (7 `it` blocks); Studio execution outstanding (human step, recorded above)
+- Tests: TestEZ specs written for pure migration (14 `it` blocks); Studio execution outstanding (human step, recorded above)
 - Regression suite: full gates re-run after final change — `rojo build`, `stylua --check src/ tests/`, `selene src/` all green
 - Lint / static analysis: pass
 - File List: complete
@@ -228,15 +248,16 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 - `wally.lock` — pins `lm-loleris/profilestore 1.0.3`, `roblox/testez 0.4.1` (generated, committed as the reproducibility contract)
 - `src/shared/Config/GameConfig.luau` — ONLY `startCapacity = 8`, `table.freeze`d
 - `src/shared/Types.luau` — `ProvenanceEntry` + minimal v1 `ProfileData` only
-- `src/shared/Schema.luau` — `CURRENT_SCHEMA_VERSION = 1`, `MAX_PROVENANCE_ENTRIES = 50`, `defaultProfile()`, pure in-place `migrate(data)`
-- `src/server/Services/DataService.luau` — `profileKey()` + `startSession(player): boolean` only; handlerless by design (1.3 wires it)
+- `src/shared/Schema.luau` — `CURRENT_SCHEMA_VERSION = 1`, `MAX_PROVENANCE_ENTRIES = 50`, `defaultProfile()`, pure in-place `migrate(data)` (review: `tonumber` key coercion, `pairs`+sort provenance trim, non-finite guards)
+- `src/server/Services/DataService.luau` — `profileKey()` + `startSession(player): boolean` only; handlerless by design (1.3 wires it); failure paths return `false` (review: non-table `Data`, migrate throw)
 - `tests/project.json` — test-only Rojo map (DataModel with Shared + DevPackages + Tests; NOT in production place)
-- `tests/Schema.spec.luau` — 7 TestEZ cases (fresh, nil, empty, older-schema, idempotent, corruption repair, malformed vault, provenance cap)
+- `tests/Schema.spec.luau` — 14 TestEZ cases (fresh, nil, empty, older-schema, idempotent, corruption repair, malformed vault, provenance cap, string-key coercion, NaN version, inf capacity, sparse provenance, unsorted newest, bad timestamps)
 
 **Modified:**
 
 - `default.project.json` — added `ServerPackages` (`$path: "ServerPackages"`) under `ServerScriptService.Server` ONLY; no client-side package mapping
 - `.gitignore` — added `/ServerPackages/`, `/DevPackages/`, `/Packages/`; restored accidentally-dropped `sourcemap.json` (this session)
+- `AGENTS.md` — recorded sourcemap-regenerate-plus-reload gotcha (review follow-up)
 - `skills/implementation-artifacts/1-2-session-locked-profile-load.md` — `baseline_commit` frontmatter, checkboxes, Dev Agent Record, File List, Change Log, Status
 - `skills/implementation-artifacts/sprint-status.yaml` — `1-2-...` status, `last_updated`
 
@@ -255,4 +276,5 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 | Date | Change |
 | --- | --- |
 | 2026-09-29 | Close-out session: verified inherited implementation against all 6 ACs (vendored ProfileStore source confirms `New` + `StartSessionAsync(key, {Cancel})` usage). Fixed `stylua --check src/` CRLF failure (`stylua src/ tests/` → LF), restored dropped `sourcemap.json` gitignore, renamed misleading spec title (`never decreases schemaVersion` → `repairs corrupt fields and clamps impossible future versions`). Gates re-run green. Story `ready-for-dev` → `review`. TestEZ Studio execution recorded as outstanding human step. |
+| 2026-09-29 | Code review (3 layers, verified against vendored source): 1 decision, 6 patches, 6 defers, 7 dismissed. Decision → Option 1 (future-version clamp is corruption repair; AC3 "never decreases" covers real profiles). Applied all 6 patches: `startSession` failure hardening, string-key coercion, `pairs`+sort provenance trim, non-finite guards, File List/count fixes — each with new spec cases (8 → 14 `it` blocks). Gates + luau-lsp re-run green. |
 
