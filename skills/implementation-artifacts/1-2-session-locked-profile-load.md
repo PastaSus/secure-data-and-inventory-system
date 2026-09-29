@@ -250,7 +250,7 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 - `src/shared/Types.luau` — `ProvenanceEntry` + minimal v1 `ProfileData` only
 - `src/shared/Schema.luau` — `CURRENT_SCHEMA_VERSION = 1`, `MAX_PROVENANCE_ENTRIES = 50`, `defaultProfile()`, pure in-place `migrate(data)` (review: `tonumber` key coercion, `pairs`+sort provenance trim, non-finite guards)
 - `src/server/Services/DataService.luau` — `profileKey()` + `startSession(player): boolean` only; handlerless by design (1.3 wires it); failure paths return `false` (review: non-table `Data`, migrate throw)
-- `tests/project.json` — test-only Rojo map (DataModel with Shared + DevPackages + Tests; NOT in production place)
+- `tests.project.json` (repo root) — test-only Rojo map (DataModel with Shared + DevPackages + Tests; NOT in production place)
 - `tests/Schema.spec.luau` — 14 TestEZ cases (fresh, nil, empty, older-schema, idempotent, corruption repair, malformed vault, provenance cap, string-key coercion, NaN version, inf capacity, sparse provenance, unsorted newest, bad timestamps)
 
 **Modified:**
@@ -277,4 +277,5 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 | --- | --- |
 | 2026-09-29 | Close-out session: verified inherited implementation against all 6 ACs (vendored ProfileStore source confirms `New` + `StartSessionAsync(key, {Cancel})` usage). Fixed `stylua --check src/` CRLF failure (`stylua src/ tests/` → LF), restored dropped `sourcemap.json` gitignore, renamed misleading spec title (`never decreases schemaVersion` → `repairs corrupt fields and clamps impossible future versions`). Gates re-run green. Story `ready-for-dev` → `review`. TestEZ Studio execution recorded as outstanding human step. |
 | 2026-09-29 | Code review (3 layers, verified against vendored source): 1 decision, 6 patches, 6 defers, 7 dismissed. Decision → Option 1 (future-version clamp is corruption repair; AC3 "never decreases" covers real profiles). Applied all 6 patches: `startSession` failure hardening, string-key coercion, `pairs`+sort provenance trim, non-finite guards, File List/count fixes — each with new spec cases (8 → 14 `it` blocks). Gates + luau-lsp re-run green. |
+| 2026-09-29 | Studio-testing follow-up (live bug, found while running specs): the test map as specified (`tests/project.json`) is unusable — Rojo 7.7.0 only accepts `*.project.json` filenames ("no project file found"), and renaming in place causes infinite project-composition recursion (stack overflow: `Tests: $path ../tests` re-loads its own project file forever). Moved to repo-root `tests.project.json` with root-relative paths; builds clean (62KB, spec + TestEZ + Shared verified in artifact). Variance vs architecture's `tests/project.json` path is deliberate and recorded here. |
 

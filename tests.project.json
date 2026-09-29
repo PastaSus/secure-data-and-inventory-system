@@ -5,13 +5,13 @@
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
 			"Shared": {
-				"$path": "../src/shared"
+				"$path": "src/shared"
 			},
 			"DevPackages": {
-				"$path": "../DevPackages"
+				"$path": "DevPackages"
 			},
 			"Tests": {
-				"$path": "../tests"
+				"$path": "tests"
 			}
 		}
 	}
