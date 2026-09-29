@@ -4,7 +4,7 @@ baseline_commit: 2c2eb6cd31f074b9fcf57f7bad427caa30441180
 
 # Story 1.2: Session-Locked Profile Load
 
-Status: review
+Status: done
 
 ## Story
 
@@ -215,7 +215,7 @@ The inherited uncommitted `.gitignore` edit (which correctly added `/ServerPacka
 | Build | `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` | exit 0 |
 | Format gate | `stylua --check src/ tests/` | green (after CRLF fix) |
 | Lint gate | `selene src/` | `0 errors, 0 warnings, 0 parse errors` |
-| TestEZ | specs written, Studio execution | **human step outstanding** (see below) |
+| TestEZ | `rojo build tests.project.json`, Studio command bar `TestBootstrap:run` | **14 passed, 0 failed, 0 skipped — run 2026-09-29 (see run record below)** |
 
 **Acceptance criteria mapping**
 
@@ -226,14 +226,22 @@ The inherited uncommitted `.gitignore` edit (which correctly added `/ServerPacka
 - **AC5** — no `SetAsync`, no direct `DataStoreService` anywhere; persistence is ProfileStore-owned ✅
 - **AC6** — `tests/Schema.spec.luau` covers fresh/nil, empty, older-schema preservation, idempotency, corruption repair, malformed-vault filtering, provenance cap ✅ (specs written; execution below)
 
-**⚠️ Caveat on the TestEZ-execution half of AC6/Task 4.2**
+**TestEZ Studio run — RECORDED 2026-09-29 (human step complete)**
+
+Method: `rojo build tests.project.json -o "tests.rbxlx"`, opened in Studio, command bar:
+`TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)`.
+Result: **14 passed, 0 failed, 0 skipped** (TextReporter). All suites green, including the
+6 review-patch cases (string-key coercion, NaN version, inf capacity, sparse provenance,
+unsorted newest, bad timestamps). `tests.rbxlx` deleted after the run (throwaway artifact).
+
+**⚠️ Caveat on the TestEZ-execution half of AC6/Task 4.2** *(superseded by the run above; kept for history)*
 
 Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox Studio, and TestEZ specs run only under Studio's TestEZ runner (`tests/project.json` maps a test-only DataModel — `selene src/` deliberately excludes it, runners exist only in Studio). Specs are written and statically green; **running them in Studio is a human step still outstanding** — open `tests/project.json` in the Studio TestEZ plugin (or Play-test harness) and paste the pass/fail counts here before marking this story `done`.
 
 **Definition of Done**
 
 - Tasks/subtasks: all complete
-- Tests: TestEZ specs written for pure migration (14 `it` blocks); Studio execution outstanding (human step, recorded above)
+- Tests: TestEZ specs written for pure migration (14 `it` blocks) and EXECUTED in Studio — 14 passed, 0 failed, 0 skipped (2026-09-29)
 - Regression suite: full gates re-run after final change — `rojo build`, `stylua --check src/ tests/`, `selene src/` all green
 - Lint / static analysis: pass
 - File List: complete
@@ -278,4 +286,5 @@ Same constraint as Story 1.1's Studio-open step: the agent cannot launch Roblox 
 | 2026-09-29 | Close-out session: verified inherited implementation against all 6 ACs (vendored ProfileStore source confirms `New` + `StartSessionAsync(key, {Cancel})` usage). Fixed `stylua --check src/` CRLF failure (`stylua src/ tests/` → LF), restored dropped `sourcemap.json` gitignore, renamed misleading spec title (`never decreases schemaVersion` → `repairs corrupt fields and clamps impossible future versions`). Gates re-run green. Story `ready-for-dev` → `review`. TestEZ Studio execution recorded as outstanding human step. |
 | 2026-09-29 | Code review (3 layers, verified against vendored source): 1 decision, 6 patches, 6 defers, 7 dismissed. Decision → Option 1 (future-version clamp is corruption repair; AC3 "never decreases" covers real profiles). Applied all 6 patches: `startSession` failure hardening, string-key coercion, `pairs`+sort provenance trim, non-finite guards, File List/count fixes — each with new spec cases (8 → 14 `it` blocks). Gates + luau-lsp re-run green. |
 | 2026-09-29 | Studio-testing follow-up (live bug, found while running specs): the test map as specified (`tests/project.json`) is unusable — Rojo 7.7.0 only accepts `*.project.json` filenames ("no project file found"), and renaming in place causes infinite project-composition recursion (stack overflow: `Tests: $path ../tests` re-loads its own project file forever). Moved to repo-root `tests.project.json` with root-relative paths; builds clean (62KB, spec + TestEZ + Shared verified in artifact). Variance vs architecture's `tests/project.json` path is deliberate and recorded here. |
+| 2026-09-29 | TestEZ Studio run by user: 14 passed, 0 failed, 0 skipped. Story `review` → `done`. |
 
