@@ -115,4 +115,33 @@ function Schema.migrate(data: any): Types.ProfileData
 	return data
 end
 
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy: { [any]: any } = {}
+	for key, item in pairs(value) do
+		copy[deepCopy(key)] = deepCopy(item)
+	end
+	return copy
+end
+
+-- snapshot returns a plain deep copy of a migrated profile: field values
+-- only, no shared references. The copy DataService hands to the wire must
+-- never alias Profile.Data, so client-side mutation can never touch the
+-- server's authoritative table. Call only with migrated data (the gate
+-- runs migrate first and refuses to continue on failure).
+function Schema.snapshot(data: Types.ProfileData): Types.ProfileData
+	if type(data) ~= "table" then
+		return Schema.defaultProfile()
+	end
+	local source: any = data
+	return {
+		schemaVersion = source.schemaVersion,
+		vault = deepCopy(source.vault),
+		provenance = deepCopy(source.provenance),
+		capacity = source.capacity,
+	}
+end
+
 return Schema
