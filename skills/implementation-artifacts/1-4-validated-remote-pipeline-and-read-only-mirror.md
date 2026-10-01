@@ -4,7 +4,7 @@ baseline_commit: 457ad68a50685da6cf990fa4d9400da0530ccd21
 
 # Story 1.4: Validated Remote Pipeline and Read-Only Mirror
 
-Status: review
+Status: done
 
 ## Story
 
@@ -72,6 +72,13 @@ so that the client can never desync from — or tamper with — my real inventor
   - [x] 10.2 Build `tests.rbxlx` from `tests.project.json`, run `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)` in the command bar, delete the throwaway `.rbxlx`, record pass/fail counts in Completion Notes ✅ 28/0/0 recorded
 - [x] Task 11 — Close-out
   - [x] 11.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-4-validated-remote-pipeline-and-read-only-mirror: review`
+
+### Review Findings
+
+_Code review 2026-10-01 · diff `master...feat/story-1-4-validated-remote-pipeline` (14 files, +871/−45) · three-layer pass (Blind Hunter / Edge Case Hunter / Acceptance Auditor) via parallel subagents; Auditor clean (all 8 ACs verified satisfied); load-bearing triage claims re-verified against the working tree before classification._
+
+- [x] [Review][Decision] **Rate-limit runs before the gate — pre-gate floods burn the legit bootstrap budget** — a client firing 15× `RequestSnapshot` before the gate opens consumes its own bucket, so the first post-gate request can be `RATE_LIMITED`. Keeping the architecture-mandated order accepts a self-only, transient (<3s) residual on the recovery path (primary gate push unaffected); going gate-first deviates from architecture Networking + Remote Handler Pipeline and needs an architecture amendment. [RemoteService.luau:onServerEvent] — RESOLVED 2026-10-01: Option 1 (keep). Delegated to dev; architecture wins ties (same principle as 1.3's `Log.info` decision). Residual is self-only (per-player buckets), transient (5/s refill), and cannot touch the primary path (gate push bypasses the pipeline). Revisit only if Epic 2 gameplay remotes prove otherwise.
+- [x] [Review][Defer] **Same-UserId rejoin before old PlayerRemoving skips the gate entirely** — a rejoin landing between the new `PlayerAdded` and the old `PlayerRemoving` hits the `gated` early-return and never gets `startSession`/snapshot/character; the late `Removing` then clears the flag, so the player sits characterless until the next rejoin. [init.server.luau:gated] — deferred, pre-existing: the `gated` dedup is 1.3 code untouched by this diff; failure is safe-direction (no gameplay, no data) and self-heals on rejoin.
 
 ## Dev Notes
 
@@ -316,3 +323,4 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | 2026-10-01 | Story created from epics 1.4 + architecture Remote Handler Pipeline / Read-only Mirror / Networking + 1.3's deferred reliable-delivery item (AC6); branch `feat/story-1-4-validated-remote-pipeline` created. |
 | 2026-10-01 | Dev implemented: `Validate` + `RateLimit` (RED-first specs), GameConfig budgets, `RemoteService` pipeline, `DataService.hasSession`, server rewiring, `StateMirror` + client connect-then-request, `MirrorTestView`, 9 new spec cases; gates green (`stylua`, `selene` 0/0/0, both Rojo builds); boundary rule 3 structurally verified (single `OnServerEvent`); sourcemap regenerated. Studio TestEZ + Play are outstanding human steps (8.3/10.1/10.2). Status `ready-for-dev` → `in-progress`. |
 | 2026-10-01 | Verification closed: TestEZ 28/0/0, Play round trip (spawn + `0 / 8` view, no rejections), rate-limit probe (6× `RATE_LIMITED` with reason code confirmed, loop removed, gates re-run green). 1.3's deferred reliable-delivery item is resolved by AC6 (bullet left in `deferred-work.md` as history, per repo precedent). Status `in-progress` → `review`. |
+| 2026-10-01 | Code review (3 layers, load-bearing claims re-verified): Auditor clean (8/8 ACs); 1 decision resolved (keep architecture order — delegated); 1 defer (rejoin-before-Removing gate skip → `deferred-work.md`); 22 dismissed with rationale. No patches. Status `review` → `done`. |
