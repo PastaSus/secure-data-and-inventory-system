@@ -61,7 +61,7 @@ so that the client can never desync from — or tamper with — my real inventor
 - [x] Task 8 — TestEZ (AC: 8)
   - [x] 8.1 Create `tests/Validate.spec.luau`: empty payload → `nil`; extra arg / explicit `nil` arg / table arg → `"INVALID_PAYLOAD"`
   - [x] 8.2 Create `tests/RateLimit.spec.luau`: full bucket accepts exactly `capacity` consumes then rejects; `capacity + 1`-th returns `false` (reject, not queue); advancing `now` refills proportionally; refill caps at `capacity`; identical `now` never refills; fractional refill accrues across calls
-  - [ ] 8.3 Run TestEZ in Studio (human step — see Task 10.2) and record counts before `review`
+  - [x] 8.3 Run TestEZ in Studio (human step — see Task 10.2) and record counts before `review`
 - [x] Task 9 — Quality gates (AC: all; NFR8)
   - [x] 9.1 `stylua src/ tests/` then `stylua --check src/ tests/` — run stylua **before** `git add` (CRLF working copies break the local gate; 1.2/1.3 lesson)
   - [x] 9.2 `selene src/` (never `selene tests/` — TestEZ globals are undefined by design)
@@ -264,7 +264,7 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | Test place build | `rojo build tests.project.json` | exit 0 (throwaway probe deleted after) |
 | Artifact probes | `rg -c` on the built place | `RemoteService` 32, `RequestSnapshot` 6, `StateMirror` 14, `Notify` 3, `remoteRateCapacity` 2 |
 | Boundary rule 3 | `rg OnServerEvent src/` | exactly 1 `Connect`, inside `RemoteService.register` |
-| TestEZ | Studio `TestBootstrap:run` (USER, outstanding — Task 8.3/10.2) | ⏳ 19 inherited + 9 new `it` blocks (28 total) await execution |
+| TestEZ | Studio `TestBootstrap:run` (user, 2026-10-01) | **28 passed, 0 failed, 0 skipped** — all 19 inherited + 9 new (`Validate.noArgs` ×3, `RateLimit` ×6) green |
 | Studio Play | round trip + rate-limit probe (USER, outstanding — Task 10.1) | ⏳ view `— / —` → `0 / 8`, `RATE_LIMITED` lines |
 | Sourcemap | `rojo sourcemap default.project.json -o sourcemap.json` | regenerated for the 5 new modules |
 
