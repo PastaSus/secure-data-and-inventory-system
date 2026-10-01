@@ -4,7 +4,7 @@ baseline_commit: 4e7994433895f50e300af704677c622860cf9e2f
 
 # Story 1.3: Join Gate — Never Play on Defaulted Data
 
-Status: review
+Status: done
 
 ## Story
 
@@ -236,6 +236,8 @@ Per the AGENTS.md gotcha: `rojo sourcemap default.project.json -o sourcemap.json
 | Test place | `rojo build tests.project.json` | builds (17 `it` blocks mapped) |
 | Artifact probes | `rg -c` on the built place | `CharacterAutoLoads` 2 (set + comment), kick message 1, `joinLoadTimeout` 3, `Log` module 1, `Hello world` 0, `Remotes` 0 (runtime, correct) |
 | TestEZ | Studio `TestBootstrap:run` (user, 2026-10-01) | **17 passed, 0 failed, 0 skipped** — all 14 inherited + 3 new `Schema.snapshot` cases green |
+| TestEZ re-run (post-review) | Studio `TestBootstrap:run` (user, 2026-10-01) | **19 passed, 0 failed, 0 skipped** — incl. container-identity + non-table-nil cases |
+| Studio Play re-check (post-review) | Production place, press Play (user, 2026-10-01) | character spawns; `[DataService] session opened {...}` via `Log:15` — patched gate (dedup, fail-closed snapshot, copy-all) verified live |
 | Studio Play (production place) | Open `secure-data-and-inventory-system.rbxlx`, press Play | character spawns (gate opened); Output shows `[profilestore]: Roblox API services unavailable` (expected Studio mock path) then `[DataService] session opened {...}` via `Log:15` — AC2 success path + AC4 same-gate-in-Studio confirmed live, 2026-10-01 |
 
 **Acceptance criteria mapping**
@@ -279,3 +281,4 @@ Per the AGENTS.md gotcha: `rojo sourcemap default.project.json -o sourcemap.json
 | 2026-10-01 | Story created from epics 1.3 + architecture Session Load Gate/Logging + 1.2 deferred items (AC5); branch `feat/story-1-3-join-gate` created. |
 | 2026-10-01 | Dev implemented: `Log.luau`, `Schema.snapshot` + 3 specs, DataService hardening (pcall `New`, join timeout, `endSession`, double-start guard, `getSnapshot`, structured `Log`), `init.server` gate (`CharacterAutoLoads`, snapshot push, kick), client receive, `Hello.luau` deleted. Gates green; Studio Play success-path verified; TestEZ 17/0/0. Status `in-progress` → `review`. |
 | 2026-10-01 | Code review (3 layers, verified against vendored source): 1 decision (resolved: keep `Log.info` gated), 11 patches applied (lock-leak release, gate dedup, nil-snapshot fail-closed, backstop kick, respawn restore, snapshot copy-all/nil, client warn + deep-freeze, pcall `EndSession`, `player_left` tag, +2 spec cases), 1 defer (reliable delivery → 1.4), 12 dismissed. Reason taxonomy is now 7 tags: `lock_failed`, `player_left`, `timeout`, `bad_data`, `migrate_failed`, `double_start`, `store_init_failed`. Gates re-run green; TestEZ re-run (19 cases) + Play re-check are outstanding human steps. |
+| 2026-10-01 | Verification closed: TestEZ 19/0/0, Play spawn + Reset-respawn confirmed. Status `review` → `done`. |
