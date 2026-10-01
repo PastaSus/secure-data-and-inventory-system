@@ -4,7 +4,7 @@ baseline_commit: 457ad68a50685da6cf990fa4d9400da0530ccd21
 
 # Story 1.4: Validated Remote Pipeline and Read-Only Mirror
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -68,10 +68,10 @@ so that the client can never desync from — or tamper with — my real inventor
   - [x] 9.3 `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` and `rojo build tests.project.json`
   - [x] 9.4 Regenerate `rojo sourcemap default.project.json -o sourcemap.json` after adding the five new modules, then **Reload Window** in VS Code (AGENTS.md gotcha)
 - [ ] Task 10 — Verification (AC: 7; human steps)
-  - [ ] 10.1 Studio Play on the production place: Output shows `[DataService] session opened`, the test view goes `— / —` → `0 / 8` + `Items 0` → character spawns ✅ Play verified 2026-10-01 (session opened, character spawned, counters render). Rate-limit probe (temporary code added during dev, **removed before close-out**): a local loop firing `RequestSnapshot` ~20× from the client must produce `rejected {... RATE_LIMITED}` lines in Output — evidence for AC2/AC3, then delete the loop
-  - [ ] 10.2 Build `tests.rbxlx` from `tests.project.json`, run `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)` in the command bar, delete the throwaway `.rbxlx`, record pass/fail counts in Completion Notes
-- [ ] Task 11 — Close-out
-  - [ ] 11.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-4-validated-remote-pipeline-and-read-only-mirror: review`
+  - [x] 10.1 Studio Play on the production place: Output shows `[DataService] session opened`, the test view goes `— / —` → `0 / 8` + `Items 0` → character spawns ✅ Play verified 2026-10-01 (session opened, character spawned, counters render). Rate-limit probe ✅ verified 2026-10-01 (21 fired → ~15 accepted + 6 `RATE_LIMITED`, expanded line confirms `{player, remote = "RequestSnapshot", reason = "RATE_LIMITED"}`); probe loop deleted, gates re-run green, place rebuilt
+  - [x] 10.2 Build `tests.rbxlx` from `tests.project.json`, run `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)` in the command bar, delete the throwaway `.rbxlx`, record pass/fail counts in Completion Notes ✅ 28/0/0 recorded
+- [x] Task 11 — Close-out
+  - [x] 11.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-4-validated-remote-pipeline-and-read-only-mirror: review`
 
 ## Dev Notes
 
@@ -171,7 +171,7 @@ skills/implementation-artifacts/sprint-status.yaml  # MOD — 1-4 status
 
 ### Deferred Work This Story Owns
 
-- [Source: skills/implementation-artifacts/deferred-work.md] **One-shot `Snapshot` FireClient can fire before the client connects and is lost forever** — deferred from 1.3 with an explicit "1.4 owns it". AC6 is that design: connect first, then request; the gate push stays as the primary path. Close the deferred-work.md bullet when AC6 is verified.
+- [Source: skills/implementation-artifacts/deferred-work.md] **One-shot `Snapshot` FireClient can fire before the client connects and is lost forever** — deferred from 1.3 with an explicit "1.4 owns it". AC6 is that design: connect first, then request; the gate push stays as the primary path. ✅ Resolved and Play-verified 2026-10-01; bullet left in `deferred-work.md` as history (repo precedent: resolved 1.2 bullets were also left in place).
 
 ### Git Intelligence Summary
 
@@ -265,14 +265,14 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | Artifact probes | `rg -c` on the built place | `RemoteService` 32, `RequestSnapshot` 6, `StateMirror` 14, `Notify` 3, `remoteRateCapacity` 2 |
 | Boundary rule 3 | `rg OnServerEvent src/` | exactly 1 `Connect`, inside `RemoteService.register` |
 | TestEZ | Studio `TestBootstrap:run` (user, 2026-10-01) | **28 passed, 0 failed, 0 skipped** — all 19 inherited + 9 new (`Validate.noArgs` ×3, `RateLimit` ×6) green |
-| Studio Play | round trip (user, 2026-10-01) + rate-limit probe (outstanding) | ✅ mock-DataStore path, `[DataService] session opened`, character spawned, counters render `0 / 8` + `0`, zero `rejected` lines on a normal join; ⏳ `RATE_LIMITED` probe lines |
+| Studio Play | round trip + rate-limit probe (user, 2026-10-01) | ✅ mock-DataStore path, `[DataService] session opened`, character spawned, counters render `0 / 8` + `0`, zero `rejected` lines on a normal join; ✅ probe: 21 fired → ~15 accepted + 6 `rejected` with expanded `{player, remote = "RequestSnapshot", reason = "RATE_LIMITED"}`; probe loop deleted, gates re-run green, place rebuilt |
 | Sourcemap | `rojo sourcemap default.project.json -o sourcemap.json` | regenerated for the 5 new modules |
 
 **Acceptance criteria mapping**
 
 - **AC1** — pipeline order `rate limit → hasSession → pcall(handler)`; all three gates run before any handler body can affect state ✅ (code + structural verification)
-- **AC2** — per-player per-remote token bucket from frozen `GameConfig` (15/5s); `false` drops immediately, no queue field anywhere ✅ (code + TestEZ-written, Studio execution outstanding)
-- **AC3** — `RATE_LIMITED` / `NO_ACTIVE_PROFILE` / `INVALID_PAYLOAD` → one `Log.warn` each with `{player, remote, reason}`; no client signal on any reject path; fault → `Log.error` + generic `Notify` ✅ (code-verified; Output evidence needs Studio Play)
+- **AC2** — per-player per-remote token bucket from frozen `GameConfig` (15/5s); `false` drops immediately, no queue field anywhere ✅ (code + TestEZ + live probe: 21 fired → 6 rejected)
+- **AC3** — `RATE_LIMITED` / `NO_ACTIVE_PROFILE` / `INVALID_PAYLOAD` → one `Log.warn` each with `{player, remote, reason}`; no client signal on any reject path; fault → `Log.error` + generic `Notify` ✅ (verified live: expanded `RATE_LIMITED` line; zero rejections on a normal join)
 - **AC4** — pre-gate/post-session requests refused at the gate check before `pcall`; nil-snapshot guard in the handler fails closed ✅ (code-verified)
 - **AC5** — `StateMirror` deep-freezes on `apply`; only `apply` writes; test view reads `get()` only; `initialSnapshot` holder deleted ✅ (code-verified)
 - **AC6** — connect-before-fire client order + retained gate push; idempotent overwrite; closes the 1.3 deferred item (bullet stays in `deferred-work.md` until Play verifies) ✅ (code-verified, Play outstanding)
@@ -315,3 +315,4 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | --- | --- |
 | 2026-10-01 | Story created from epics 1.4 + architecture Remote Handler Pipeline / Read-only Mirror / Networking + 1.3's deferred reliable-delivery item (AC6); branch `feat/story-1-4-validated-remote-pipeline` created. |
 | 2026-10-01 | Dev implemented: `Validate` + `RateLimit` (RED-first specs), GameConfig budgets, `RemoteService` pipeline, `DataService.hasSession`, server rewiring, `StateMirror` + client connect-then-request, `MirrorTestView`, 9 new spec cases; gates green (`stylua`, `selene` 0/0/0, both Rojo builds); boundary rule 3 structurally verified (single `OnServerEvent`); sourcemap regenerated. Studio TestEZ + Play are outstanding human steps (8.3/10.1/10.2). Status `ready-for-dev` → `in-progress`. |
+| 2026-10-01 | Verification closed: TestEZ 28/0/0, Play round trip (spawn + `0 / 8` view, no rejections), rate-limit probe (6× `RATE_LIMITED` with reason code confirmed, loop removed, gates re-run green). 1.3's deferred reliable-delivery item is resolved by AC6 (bullet left in `deferred-work.md` as history, per repo precedent). Status `in-progress` → `review`. |
