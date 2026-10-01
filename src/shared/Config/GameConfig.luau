@@ -6,6 +6,9 @@
 
 local GameConfig = {
 	startCapacity = 8,
+	-- Maximum seconds the join gate waits for ProfileStore session lock
+	-- acquisition before failing closed (kick). Owned by the join gate.
+	joinLoadTimeout = 10,
 }
 
 table.freeze(GameConfig)

@@ -1,5 +1,5 @@
 # generated: 2026-09-28
-# last_updated: 2026-09-29
+# last_updated: 2026-10-01
 # project: secure-data-and-inventory-system
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-09-28
-last_updated: 2026-09-29
+last_updated: 2026-10-01
 project: secure-data-and-inventory-system
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
   epic-1: in-progress
   1-1-project-structure-on-the-existing-scaffold: done
   1-2-session-locked-profile-load: done
-  1-3-join-gate-never-play-on-defaulted-data: backlog
+  1-3-join-gate-never-play-on-defaulted-data: done
   1-4-validated-remote-pipeline-and-read-only-mirror: backlog
   1-5-main-menu-entry: backlog
   epic-1-retrospective: optional

@@ -115,4 +115,30 @@ function Schema.migrate(data: any): Types.ProfileData
 	return data
 end
 
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy: { [any]: any } = {}
+	for key, item in pairs(value) do
+		copy[deepCopy(key)] = deepCopy(item)
+	end
+	return copy
+end
+
+-- snapshot returns a plain deep copy of a migrated profile: the whole
+-- table, values only, no shared references. Copying everything (rather
+-- than a fixed key allowlist) keeps the wire in step with future forward
+-- migrations automatically; ProfileData holds player data only, so there
+-- is no server-only field to leak (server-only content lives in
+-- ServerStorage per architecture). Non-table input returns nil — the gate
+-- treats nil as "closed" and kicks, never defaults. Call only with
+-- migrated data (the gate runs migrate first and refuses on failure).
+function Schema.snapshot(data: Types.ProfileData): Types.ProfileData?
+	if type(data) ~= "table" then
+		return nil
+	end
+	return deepCopy(data)
+end
+
 return Schema

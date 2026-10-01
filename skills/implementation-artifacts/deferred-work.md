@@ -3,6 +3,10 @@
 Work deliberately deferred rather than fixed, tracked here so it is not lost. One bullet per
 finding, with the reason for deferring.
 
+## Deferred from: code review of 1-3-join-gate-never-play-on-defaulted-data (2026-10-01)
+
+- **One-shot `Snapshot` FireClient can fire before the client connects and is lost forever.** No ack/retry exists without a client→server path, and that path is Story 1.4's validated pipeline + StateMirror. Deferred because guaranteed delivery must be designed with the pipeline, not bolted onto the 1.3 push; 1.4's ACs ("server pushes the snapshot", mirror-driven test view) own it. [init.server.luau:38-40]
+
 ## Deferred from: code review of 1-1-project-structure-on-the-existing-scaffold (2026-09-29)
 
 - **No reproducible verification artifact — all acceptance evidence is prose.** Story 1.1's acceptance

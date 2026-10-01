@@ -166,4 +166,89 @@ return function()
 			expect(migrated.provenance[2].acquiredAt).to.equal(0)
 		end)
 	end)
+
+	describe("Schema.snapshot", function()
+		it("copies every field of a migrated profile", function()
+			local source = Schema.migrate({
+				schemaVersion = 1,
+				vault = { [1] = 3, [7] = 1 },
+				provenance = {
+					{ itemDefId = 1, source = "dive", acquiredAt = 100 },
+				},
+				capacity = 12,
+			})
+
+			local snapshot = Schema.snapshot(source)
+
+			expect(snapshot.schemaVersion).to.equal(1)
+			expect(snapshot.vault[1]).to.equal(3)
+			expect(snapshot.vault[7]).to.equal(1)
+			expect(snapshot.capacity).to.equal(12)
+			expect(#snapshot.provenance).to.equal(1)
+			expect(snapshot.provenance[1].itemDefId).to.equal(1)
+			expect(snapshot.provenance[1].acquiredAt).to.equal(100)
+		end)
+
+		it("returns independent tables that never alias Profile.Data", function()
+			local source = Schema.migrate({
+				vault = { [1] = 3 },
+				provenance = {
+					{ itemDefId = 1, source = "dive", acquiredAt = 100 },
+				},
+				capacity = 8,
+			})
+
+			local snapshot = Schema.snapshot(source)
+			snapshot.vault[1] = 99
+			snapshot.vault[2] = 1
+			snapshot.provenance[1].itemDefId = 5
+			snapshot.capacity = 0
+
+			expect(source.vault[1]).to.equal(3)
+			expect(source.vault[2]).to.equal(nil)
+			expect(source.provenance[1].itemDefId).to.equal(1)
+			expect(source.capacity).to.equal(8)
+		end)
+
+		it("is unaffected by later mutations of the source profile", function()
+			local source = Schema.migrate({
+				vault = { [1] = 3 },
+				provenance = {
+					{ itemDefId = 1, source = "dive", acquiredAt = 100 },
+				},
+				capacity = 8,
+			})
+
+			local snapshot = Schema.snapshot(source)
+			source.vault[1] = 0
+			source.provenance[1].itemDefId = 9
+			source.capacity = 1
+
+			expect(snapshot.vault[1]).to.equal(3)
+			expect(snapshot.provenance[1].itemDefId).to.equal(1)
+			expect(snapshot.capacity).to.equal(8)
+		end)
+
+		it("shares neither the vault nor the provenance container with the source", function()
+			local source = Schema.migrate({
+				vault = { [1] = 3 },
+				provenance = {
+					{ itemDefId = 1, source = "dive", acquiredAt = 100 },
+				},
+				capacity = 8,
+			})
+
+			local snapshot = Schema.snapshot(source)
+			snapshot.vault[99] = 7
+			table.insert(snapshot.provenance, { itemDefId = 2, source = "dive", acquiredAt = 200 })
+
+			expect(source.vault[99]).to.equal(nil)
+			expect(#source.provenance).to.equal(1)
+		end)
+
+		it("returns nil for non-table input instead of defaulting", function()
+			expect(Schema.snapshot(nil)).to.equal(nil)
+			expect(Schema.snapshot(42)).to.equal(nil)
+		end)
+	end)
 end

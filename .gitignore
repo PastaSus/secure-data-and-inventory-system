@@ -1,6 +1,9 @@
 # Project place file
 /secure-data-and-inventory-system.rbxlx
 
+# Test place file (throwaway Studio runner artifact, rebuilt per run)
+/tests.rbxlx
+
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
