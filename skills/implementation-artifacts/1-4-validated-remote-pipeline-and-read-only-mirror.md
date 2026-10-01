@@ -68,7 +68,7 @@ so that the client can never desync from — or tamper with — my real inventor
   - [x] 9.3 `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` and `rojo build tests.project.json`
   - [x] 9.4 Regenerate `rojo sourcemap default.project.json -o sourcemap.json` after adding the five new modules, then **Reload Window** in VS Code (AGENTS.md gotcha)
 - [ ] Task 10 — Verification (AC: 7; human steps)
-  - [ ] 10.1 Studio Play on the production place: Output shows `[DataService] session opened`, the test view goes `— / —` → `0 / 8` + `Items 0` → character spawns. Rate-limit probe (temporary code added during dev, **removed before close-out**): a local loop firing `RequestSnapshot` ~20× from the client must produce `rejected {... RATE_LIMITED}` lines in Output — evidence for AC2/AC3, then delete the loop
+  - [ ] 10.1 Studio Play on the production place: Output shows `[DataService] session opened`, the test view goes `— / —` → `0 / 8` + `Items 0` → character spawns ✅ Play verified 2026-10-01 (session opened, character spawned, counters render). Rate-limit probe (temporary code added during dev, **removed before close-out**): a local loop firing `RequestSnapshot` ~20× from the client must produce `rejected {... RATE_LIMITED}` lines in Output — evidence for AC2/AC3, then delete the loop
   - [ ] 10.2 Build `tests.rbxlx` from `tests.project.json`, run `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)` in the command bar, delete the throwaway `.rbxlx`, record pass/fail counts in Completion Notes
 - [ ] Task 11 — Close-out
   - [ ] 11.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-4-validated-remote-pipeline-and-read-only-mirror: review`
@@ -265,7 +265,7 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | Artifact probes | `rg -c` on the built place | `RemoteService` 32, `RequestSnapshot` 6, `StateMirror` 14, `Notify` 3, `remoteRateCapacity` 2 |
 | Boundary rule 3 | `rg OnServerEvent src/` | exactly 1 `Connect`, inside `RemoteService.register` |
 | TestEZ | Studio `TestBootstrap:run` (user, 2026-10-01) | **28 passed, 0 failed, 0 skipped** — all 19 inherited + 9 new (`Validate.noArgs` ×3, `RateLimit` ×6) green |
-| Studio Play | round trip + rate-limit probe (USER, outstanding — Task 10.1) | ⏳ view `— / —` → `0 / 8`, `RATE_LIMITED` lines |
+| Studio Play | round trip (user, 2026-10-01) + rate-limit probe (outstanding) | ✅ mock-DataStore path, `[DataService] session opened`, character spawned, counters render `0 / 8` + `0`, zero `rejected` lines on a normal join; ⏳ `RATE_LIMITED` probe lines |
 | Sourcemap | `rojo sourcemap default.project.json -o sourcemap.json` | regenerated for the 5 new modules |
 
 **Acceptance criteria mapping**
