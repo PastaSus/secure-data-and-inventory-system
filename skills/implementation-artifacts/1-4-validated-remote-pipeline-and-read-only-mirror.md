@@ -264,7 +264,7 @@ Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLa
 | Test place build | `rojo build tests.project.json` | exit 0 (throwaway probe deleted after) |
 | Artifact probes | `rg -c` on the built place | `RemoteService` 32, `RequestSnapshot` 6, `StateMirror` 14, `Notify` 3, `remoteRateCapacity` 2 |
 | Boundary rule 3 | `rg OnServerEvent src/` | exactly 1 `Connect`, inside `RemoteService.register` |
-| TestEZ | Studio `TestBootstrap:run` (USER, outstanding — Task 8.3/10.2) | ⏳ 25 inherited + 9 new `it` blocks await execution |
+| TestEZ | Studio `TestBootstrap:run` (USER, outstanding — Task 8.3/10.2) | ⏳ 19 inherited + 9 new `it` blocks (28 total) await execution |
 | Studio Play | round trip + rate-limit probe (USER, outstanding — Task 10.1) | ⏳ view `— / —` → `0 / 8`, `RATE_LIMITED` lines |
 | Sourcemap | `rojo sourcemap default.project.json -o sourcemap.json` | regenerated for the 5 new modules |
 
