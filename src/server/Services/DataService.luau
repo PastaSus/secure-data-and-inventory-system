@@ -46,6 +46,14 @@ function DataService.profileKey(userId: number): string
 	return KEY_PREFIX .. tostring(userId)
 end
 
+-- Registry-only check for the RemoteService pipeline gate: does this
+-- server hold a live session for the player? No copy, no yields. Callers
+-- treat false as "gate closed", never as "serve defaults". Added by
+-- Story 1.4; startSession/endSession/getSnapshot contracts unchanged.
+function DataService.hasSession(player: Player): boolean
+	return _profiles[player.UserId] ~= nil
+end
+
 -- Obtains the ProfileStore session lock for a joining player, then runs
 -- the forward-only migration so the data the gate snapshots is already
 -- migrated. Returns true on lock+migrate success, false on ANY failure.

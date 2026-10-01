@@ -3,25 +3,30 @@
 -- task.spawn'd Start() pass (architecture decision 2); every later service
 -- story hooks into these two passes.
 -- Story 1.3 owns the join gate: CharacterAutoLoads stays off until a player
--- passes the gate (no gameplay before the lock), the Snapshot remote is
--- bootstrapped at runtime, and PlayerAdded / PlayerRemoving drive
+-- passes the gate (no gameplay before the lock), the gate snapshots and
+-- releases via DataService, and PlayerAdded / PlayerRemoving drive
 -- DataService.startSession / endSession. No Studio special-casing.
+-- Story 1.4 owns the remote surface: RemoteService creates the Remotes
+-- folder + server→client channels in Init(), the single bootstrap request
+-- (RequestSnapshot) is registered here next to the gate push it serves,
+-- and the gate pushes snapshots through RemoteService. Rejections are
+-- silent to the client and logged server-side.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local Types = require(ReplicatedStorage.Shared.Types)
+local Validate = require(ReplicatedStorage.Shared.Validate)
 local DataService = require(script.Services.DataService)
+local RemoteService = require(script.Services.RemoteService)
 
-local REMOTES_FOLDER_NAME = "Remotes"
-local SNAPSHOT_EVENT_NAME = "Snapshot"
+local REQUEST_SNAPSHOT_NAME = "RequestSnapshot"
 local KICK_MESSAGE = "Could not load your data. Please rejoin."
 -- Slack past joinLoadTimeout before the backstop kicks: Cancel aborts the
 -- load at the deadline but ProfileStore only honors it at poll points, so
 -- the gate guarantees a kick no later than timeout + slack.
 local BACKSTOP_SLACK_SECONDS = 5
-
-local snapshotEvent: RemoteEvent?
 
 -- UserIds already gated (or gating). PlayerAdded is connected BEFORE the
 -- existing-players loop, so a join landing in between would otherwise run
@@ -32,15 +37,26 @@ local gated: { [number]: boolean } = {}
 
 local function init(): ()
 	Players.CharacterAutoLoads = false
+	RemoteService.init()
 
-	local remotes = Instance.new("Folder")
-	remotes.Name = REMOTES_FOLDER_NAME
-	remotes.Parent = ReplicatedStorage
-
-	local event = Instance.new("RemoteEvent")
-	event.Name = SNAPSHOT_EVENT_NAME
-	event.Parent = remotes
-	snapshotEvent = event
+	-- The pipeline's own bootstrap request: answers a client that missed
+	-- the gate push with a fresh snapshot. Registered here (not inside
+	-- RemoteService) because it owns snapshot semantics alongside the
+	-- gate. No payload by design — any argument is forged traffic.
+	RemoteService.register(REQUEST_SNAPSHOT_NAME, function(player: Player, ...: any): Types.ErrorCode?
+		local err = Validate.noArgs(...)
+		if err ~= nil then
+			return err
+		end
+		local snapshot = DataService.getSnapshot(player)
+		if snapshot == nil then
+			-- Gate check already passed above us, so this is unreachable
+			-- without a race — fail closed anyway, never push defaults.
+			return "NO_ACTIVE_PROFILE"
+		end
+		RemoteService.pushSnapshot(player, snapshot)
+		return nil
+	end)
 end
 
 -- Restores the engine's default respawn that CharacterAutoLoads = false
@@ -75,10 +91,9 @@ local function gatePlayer(player: Player): ()
 	end)
 
 	if DataService.startSession(player) then
-		local event = snapshotEvent
 		local snapshot = DataService.getSnapshot(player)
-		if event ~= nil and snapshot ~= nil then
-			event:FireClient(player, snapshot)
+		if snapshot ~= nil then
+			RemoteService.pushSnapshot(player, snapshot)
 			player.CharacterAdded:Connect(function(character: Model)
 				watchCharacter(player, character)
 			end)
@@ -102,6 +117,7 @@ local function start(): ()
 	end
 	Players.PlayerRemoving:Connect(function(leaving: Player)
 		gated[leaving.UserId] = nil
+		RemoteService.releasePlayer(leaving)
 		DataService.endSession(leaving)
 	end)
 end

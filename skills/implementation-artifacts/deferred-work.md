@@ -3,6 +3,10 @@
 Work deliberately deferred rather than fixed, tracked here so it is not lost. One bullet per
 finding, with the reason for deferring.
 
+## Deferred from: code review of 1-4-validated-remote-pipeline-and-read-only-mirror (2026-10-01)
+
+- **Same-UserId rejoin before old `PlayerRemoving` skips the gate entirely.** A rejoin landing between the new `PlayerAdded` and the old `PlayerRemoving` hits the `gated` early-return and never gets `startSession`/snapshot/character; the late `Removing` clears the flag, leaving the player characterless until the next rejoin. Deferred because the `gated` dedup is 1.3 code untouched by 1.4, the failure is safe-direction (no gameplay, no data), and a proper fix needs a design answer (e.g. re-gate on `Added` timestamp) — candidate owner: Story 1.5 or Epic 5. [init.server.luau:gated]
+
 ## Deferred from: code review of 1-3-join-gate-never-play-on-defaulted-data (2026-10-01)
 
 - **One-shot `Snapshot` FireClient can fire before the client connects and is lost forever.** No ack/retry exists without a client→server path, and that path is Story 1.4's validated pipeline + StateMirror. Deferred because guaranteed delivery must be designed with the pipeline, not bolted onto the 1.3 push; 1.4's ACs ("server pushes the snapshot", mirror-driven test view) own it. [init.server.luau:38-40]
