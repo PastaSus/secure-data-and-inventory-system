@@ -4,7 +4,7 @@ baseline_commit: 457ad68a50685da6cf990fa4d9400da0530ccd21
 
 # Story 1.4: Validated Remote Pipeline and Read-Only Mirror
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -25,48 +25,48 @@ so that the client can never desync from — or tamper with — my real inventor
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Pure shared validators (AC: 1c, 8)
-  - [ ] 1.1 Add `export type ErrorCode = string` to `src/shared/Types.luau` (UPPER_SNAKE by convention) — architecture names `ErrorCode` as a `Types.luau` responsibility
-  - [ ] 1.2 Create `src/shared/Validate.luau` (`--!strict`, shared-pure, no game services): `Validate.noArgs(...any): ErrorCode?` returns `"INVALID_PAYLOAD"` when `select("#", ...) > 0`, else `nil`
-  - [ ] 1.3 Do NOT pre-build a validator library — only what this story's handlers call (no duplicated `isPositiveInteger`; `Schema` keeps its private copy)
-- [ ] Task 2 — Pure token bucket (AC: 2, 8)
-  - [ ] 2.1 Create `src/shared/RateLimit.luau` (`--!strict`, shared-pure): `newBucket(now)` → `{tokens, updatedAt}`; `tryConsume(bucket, cfg, now): boolean` refills by `elapsed * cfg.refillPerSecond`, caps at `cfg.capacity`, consumes 1 on success, returns `false` when `tokens < 1`
-  - [ ] 2.2 The clock is an **explicit `now` parameter**, never `os.clock()` inside — TestEZ cannot stub `os.clock`, and RemoteService passes `os.clock()` at the call site
-  - [ ] 2.3 Reject semantics: `false` means *drop now* — no queue field, no deferred retry, no waiting
-- [ ] Task 3 — Rate-limit configuration (AC: 2)
-  - [ ] 3.1 Add `remoteRateCapacity = 15` and `remoteRateRefillPerSecond = 5` to `src/shared/Config/GameConfig.luau`, before the existing `table.freeze`
-  - [ ] 3.2 Document them as the default bucket for **every** client remote; a per-remote override table is added only when a remote genuinely needs a different budget (data created only when required)
-- [ ] Task 4 — `RemoteService` (AC: 1, 2, 3, 4)
-  - [ ] 4.1 Create `src/server/Services/RemoteService.luau` (`--!strict`): `init()` creates `ReplicatedStorage.Remotes` + `Snapshot` + `Notify` RemoteEvents (the server→client channels; moved out of `init.server.luau`)
-  - [ ] 4.2 `register(name, handler)` lazily creates `Remotes/<name>` if absent, then connects `OnServerEvent` **once**; calling it before `init()` (no folder) or registering an already-registered name is refused with `Log.error` (never a second connection)
-  - [ ] 4.3 Handler contract: `handler(player, ...any) -> ErrorCode?` — `nil` = accepted; non-nil = rejected (logged, no client signal). Handlers call `Validate.*` themselves inside the body, per the architecture's verbatim registration example
-  - [ ] 4.4 Pipeline per request, in this order: (1) `RateLimit.tryConsume(bucket, RATE_CFG, os.clock())` where `RATE_CFG = { capacity = GameConfig.remoteRateCapacity, refillPerSecond = GameConfig.remoteRateRefillPerSecond }` is built **once at module scope** (not per request) → on `false` log `RATE_LIMITED` and return; (2) `DataService.hasSession(player)` → on `false` log `NO_ACTIVE_PROFILE` and return; (3) `pcall(handler, player, ...)` → on throw `Log.error` `HANDLER_FAULT` + `RemoteService.notify(player, "Something went wrong — nothing was changed.")`; on a returned code `Log.warn` that code
-  - [ ] 4.5 Bucket state keyed `userId .. "\0" .. remoteName`; expose `RemoteService.releasePlayer(player)` to drop every bucket for a player — called from the **existing** `PlayerRemoving` connection in `init.server.luau` (one connection, explicit ordering; do not open a second one)
-  - [ ] 4.6 `pushSnapshot(player, snapshot)` fires `Snapshot`; `notify(player, message)` fires `Notify`. Both no-op with a `Log.warn` if the event/`player.Parent` is gone
-  - [ ] 4.7 No other module ever connects to `OnServerEvent` (boundary rule 3); no `IsStudio()` branch anywhere in the pipeline
-- [ ] Task 5 — Server rewiring (AC: 1, 4, 5, 6)
-  - [ ] 5.1 `src/server/init.server.luau` `Init()`: keep `Players.CharacterAutoLoads = false`, replace the inline Remotes/`Snapshot` creation with `RemoteService.init()`, then `RemoteService.register("RequestSnapshot", handler)` — handler = `Validate.noArgs(...)` → `DataService.getSnapshot(player)` → `nil` returns `"NO_ACTIVE_PROFILE"` (fail closed, never push defaults) → else `RemoteService.pushSnapshot(player, snapshot)`
-  - [ ] 5.2 Gate success path: `RemoteService.pushSnapshot(player, snapshot)` instead of the local `snapshotEvent:FireClient` (order unchanged: push **then** `LoadCharacter`); delete `snapshotEvent`, `REMOTES_FOLDER_NAME`, `SNAPSHOT_EVENT_NAME`
-  - [ ] 5.3 Add `DataService.hasSession(player): boolean` (registry lookup only — no snapshot copy, no yields) and use it in the pipeline gate check
-  - [ ] 5.4 In the existing `Players.PlayerRemoving` handler, call `RemoteService.releasePlayer(leaving)` before `DataService.endSession(leaving)`
-  - [ ] 5.5 Leave untouched: kick message, `gated` dedup set, backstop `task.delay`, respawn watcher, nil-snapshot fail-closed kick, `endSession` behavior
-- [ ] Task 6 — Client mirror (AC: 5, 6)
-  - [ ] 6.1 Create `src/client/Controllers/StateMirror.luau`: private frozen snapshot; `apply(payload)` type-checks + deep-freezes + stores, then fires subscribers; `get()` returns the frozen snapshot (or `nil`); `onChange(cb)` registers a subscriber (plain callback list — **no** `Signal.luau`, no delta events at this story)
-  - [ ] 6.2 Move `deepFreeze` out of `init.client.luau` into `StateMirror` (only `StateMirror.apply` may write the mirror — boundary rule 5)
-  - [ ] 6.3 Rewrite `src/client/init.client.luau`: `WaitForChild` Remotes (existing timeouts + `Log.warn` on timeout) → require `StateMirror` + `MirrorTestView` → connect `Snapshot.OnClientEvent` → `StateMirror.apply(payload)` → `MirrorTestView.start()` → **then**, only if the `RequestSnapshot` event resolved, `FireServer()` once. Connect-before-fire is what makes AC6 hold
-  - [ ] 6.4 Delete the `initialSnapshot` local holder (replaced by `StateMirror`)
-- [ ] Task 7 — Mirror-driven test view (AC: 7)
-  - [ ] 7.1 Create `src/client/Controllers/MirrorTestView.luau`: `start()` builds a `ScreenGui` in `LocalPlayer:WaitForChild("PlayerGui")` with two `TextLabel`s, renders immediately from `StateMirror.get()` (placeholder `— / —` pre-snapshot), re-renders on every `StateMirror.onChange`
-  - [ ] 7.2 Render `Vault: {used} / {capacity}` and `Items: {count}` where `used` = distinct `itemDefId`s with `count > 0`, `count` = sum of vault counts — both are *display derivations from the mirror only*, never authoritative state, never enforced
-- [ ] Task 8 — TestEZ (AC: 8)
-  - [ ] 8.1 Create `tests/Validate.spec.luau`: empty payload → `nil`; extra arg / explicit `nil` arg / table arg → `"INVALID_PAYLOAD"`
-  - [ ] 8.2 Create `tests/RateLimit.spec.luau`: full bucket accepts exactly `capacity` consumes then rejects; `capacity + 1`-th returns `false` (reject, not queue); advancing `now` refills proportionally; refill caps at `capacity`; identical `now` never refills; fractional refill accrues across calls
+- [x] Task 1 — Pure shared validators (AC: 1c, 8)
+  - [x] 1.1 Add `export type ErrorCode = string` to `src/shared/Types.luau` (UPPER_SNAKE by convention) — architecture names `ErrorCode` as a `Types.luau` responsibility
+  - [x] 1.2 Create `src/shared/Validate.luau` (`--!strict`, shared-pure, no game services): `Validate.noArgs(...any): ErrorCode?` returns `"INVALID_PAYLOAD"` when `select("#", ...) > 0`, else `nil`
+  - [x] 1.3 Do NOT pre-build a validator library — only what this story's handlers call (no duplicated `isPositiveInteger`; `Schema` keeps its private copy)
+- [x] Task 2 — Pure token bucket (AC: 2, 8)
+  - [x] 2.1 Create `src/shared/RateLimit.luau` (`--!strict`, shared-pure): `newBucket(now)` → `{tokens, updatedAt}`; `tryConsume(bucket, cfg, now): boolean` refills by `elapsed * cfg.refillPerSecond`, caps at `cfg.capacity`, consumes 1 on success, returns `false` when `tokens < 1`
+  - [x] 2.2 The clock is an **explicit `now` parameter**, never `os.clock()` inside — TestEZ cannot stub `os.clock`, and RemoteService passes `os.clock()` at the call site
+  - [x] 2.3 Reject semantics: `false` means *drop now* — no queue field, no deferred retry, no waiting
+- [x] Task 3 — Rate-limit configuration (AC: 2)
+  - [x] 3.1 Add `remoteRateCapacity = 15` and `remoteRateRefillPerSecond = 5` to `src/shared/Config/GameConfig.luau`, before the existing `table.freeze`
+  - [x] 3.2 Document them as the default bucket for **every** client remote; a per-remote override table is added only when a remote genuinely needs a different budget (data created only when required)
+- [x] Task 4 — `RemoteService` (AC: 1, 2, 3, 4)
+  - [x] 4.1 Create `src/server/Services/RemoteService.luau` (`--!strict`): `init()` creates `ReplicatedStorage.Remotes` + `Snapshot` + `Notify` RemoteEvents (the server→client channels; moved out of `init.server.luau`)
+  - [x] 4.2 `register(name, handler)` lazily creates `Remotes/<name>` if absent, then connects `OnServerEvent` **once**; calling it before `init()` (no folder) or registering an already-registered name is refused with `Log.error` (never a second connection)
+  - [x] 4.3 Handler contract: `handler(player, ...any) -> ErrorCode?` — `nil` = accepted; non-nil = rejected (logged, no client signal). Handlers call `Validate.*` themselves inside the body, per the architecture's verbatim registration example
+  - [x] 4.4 Pipeline per request, in this order: (1) `RateLimit.tryConsume(bucket, RATE_CFG, os.clock())` where `RATE_CFG = { capacity = GameConfig.remoteRateCapacity, refillPerSecond = GameConfig.remoteRateRefillPerSecond }` is built **once at module scope** (not per request) → on `false` log `RATE_LIMITED` and return; (2) `DataService.hasSession(player)` → on `false` log `NO_ACTIVE_PROFILE` and return; (3) `pcall(handler, player, ...)` → on throw `Log.error` `HANDLER_FAULT` + `RemoteService.notify(player, "Something went wrong — nothing was changed.")`; on a returned code `Log.warn` that code
+  - [x] 4.5 Bucket state keyed `userId .. "\0" .. remoteName`; expose `RemoteService.releasePlayer(player)` to drop every bucket for a player — called from the **existing** `PlayerRemoving` connection in `init.server.luau` (one connection, explicit ordering; do not open a second one)
+  - [x] 4.6 `pushSnapshot(player, snapshot)` fires `Snapshot`; `notify(player, message)` fires `Notify`. Both no-op with a `Log.warn` if the event/`player.Parent` is gone
+  - [x] 4.7 No other module ever connects to `OnServerEvent` (boundary rule 3); no `IsStudio()` branch anywhere in the pipeline
+- [x] Task 5 — Server rewiring (AC: 1, 4, 5, 6)
+  - [x] 5.1 `src/server/init.server.luau` `Init()`: keep `Players.CharacterAutoLoads = false`, replace the inline Remotes/`Snapshot` creation with `RemoteService.init()`, then `RemoteService.register("RequestSnapshot", handler)` — handler = `Validate.noArgs(...)` → `DataService.getSnapshot(player)` → `nil` returns `"NO_ACTIVE_PROFILE"` (fail closed, never push defaults) → else `RemoteService.pushSnapshot(player, snapshot)`
+  - [x] 5.2 Gate success path: `RemoteService.pushSnapshot(player, snapshot)` instead of the local `snapshotEvent:FireClient` (order unchanged: push **then** `LoadCharacter`); delete `snapshotEvent`, `REMOTES_FOLDER_NAME`, `SNAPSHOT_EVENT_NAME`
+  - [x] 5.3 Add `DataService.hasSession(player): boolean` (registry lookup only — no snapshot copy, no yields) and use it in the pipeline gate check
+  - [x] 5.4 In the existing `Players.PlayerRemoving` handler, call `RemoteService.releasePlayer(leaving)` before `DataService.endSession(leaving)`
+  - [x] 5.5 Leave untouched: kick message, `gated` dedup set, backstop `task.delay`, respawn watcher, nil-snapshot fail-closed kick, `endSession` behavior
+- [x] Task 6 — Client mirror (AC: 5, 6)
+  - [x] 6.1 Create `src/client/Controllers/StateMirror.luau`: private frozen snapshot; `apply(payload)` type-checks + deep-freezes + stores, then fires subscribers; `get()` returns the frozen snapshot (or `nil`); `onChange(cb)` registers a subscriber (plain callback list — **no** `Signal.luau`, no delta events at this story)
+  - [x] 6.2 Move `deepFreeze` out of `init.client.luau` into `StateMirror` (only `StateMirror.apply` may write the mirror — boundary rule 5)
+  - [x] 6.3 Rewrite `src/client/init.client.luau`: `WaitForChild` Remotes (existing timeouts + `Log.warn` on timeout) → require `StateMirror` + `MirrorTestView` → connect `Snapshot.OnClientEvent` → `StateMirror.apply(payload)` → `MirrorTestView.start()` → **then**, only if the `RequestSnapshot` event resolved, `FireServer()` once. Connect-before-fire is what makes AC6 hold
+  - [x] 6.4 Delete the `initialSnapshot` local holder (replaced by `StateMirror`)
+- [x] Task 7 — Mirror-driven test view (AC: 7)
+  - [x] 7.1 Create `src/client/Controllers/MirrorTestView.luau`: `start()` builds a `ScreenGui` in `LocalPlayer:WaitForChild("PlayerGui")` with two `TextLabel`s, renders immediately from `StateMirror.get()` (placeholder `— / —` pre-snapshot), re-renders on every `StateMirror.onChange`
+  - [x] 7.2 Render `Vault: {used} / {capacity}` and `Items: {count}` where `used` = distinct `itemDefId`s with `count > 0`, `count` = sum of vault counts — both are *display derivations from the mirror only*, never authoritative state, never enforced
+- [x] Task 8 — TestEZ (AC: 8)
+  - [x] 8.1 Create `tests/Validate.spec.luau`: empty payload → `nil`; extra arg / explicit `nil` arg / table arg → `"INVALID_PAYLOAD"`
+  - [x] 8.2 Create `tests/RateLimit.spec.luau`: full bucket accepts exactly `capacity` consumes then rejects; `capacity + 1`-th returns `false` (reject, not queue); advancing `now` refills proportionally; refill caps at `capacity`; identical `now` never refills; fractional refill accrues across calls
   - [ ] 8.3 Run TestEZ in Studio (human step — see Task 10.2) and record counts before `review`
-- [ ] Task 9 — Quality gates (AC: all; NFR8)
-  - [ ] 9.1 `stylua src/ tests/` then `stylua --check src/ tests/` — run stylua **before** `git add` (CRLF working copies break the local gate; 1.2/1.3 lesson)
-  - [ ] 9.2 `selene src/` (never `selene tests/` — TestEZ globals are undefined by design)
-  - [ ] 9.3 `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` and `rojo build tests.project.json`
-  - [ ] 9.4 Regenerate `rojo sourcemap default.project.json -o sourcemap.json` after adding the five new modules, then **Reload Window** in VS Code (AGENTS.md gotcha)
+- [x] Task 9 — Quality gates (AC: all; NFR8)
+  - [x] 9.1 `stylua src/ tests/` then `stylua --check src/ tests/` — run stylua **before** `git add` (CRLF working copies break the local gate; 1.2/1.3 lesson)
+  - [x] 9.2 `selene src/` (never `selene tests/` — TestEZ globals are undefined by design)
+  - [x] 9.3 `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` and `rojo build tests.project.json`
+  - [x] 9.4 Regenerate `rojo sourcemap default.project.json -o sourcemap.json` after adding the five new modules, then **Reload Window** in VS Code (AGENTS.md gotcha)
 - [ ] Task 10 — Verification (AC: 7; human steps)
   - [ ] 10.1 Studio Play on the production place: Output shows `[DataService] session opened`, the test view goes `— / —` → `0 / 8` + `Items 0` → character spawns. Rate-limit probe (temporary code added during dev, **removed before close-out**): a local loop firing `RequestSnapshot` ~20× from the client must produce `rejected {... RATE_LIMITED}` lines in Output — evidence for AC2/AC3, then delete the loop
   - [ ] 10.2 Build `tests.rbxlx` from `tests.project.json`, run `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)` in the command bar, delete the throwaway `.rbxlx`, record pass/fail counts in Completion Notes
@@ -228,22 +228,90 @@ skills/implementation-artifacts/sprint-status.yaml  # MOD — 1-4 status
 
 `opencode/mimo-v2.6-flash-free` (create-story session, 2026-10-01)
 
+`opencode/mimo-v2.6-flash-free` (create-story session, 2026-10-01; dev-story session, 2026-10-01)
+
 ### Debug Log References
 
+**1. `Types.luau` ProfileData body clobbered by a too-wide edit**
+
+The Task 1.1 edit matched the whole `ProfileData` block as `oldString` and replaced it with a bare header — caught immediately on re-read, body restored plus `ErrorCode`. Lesson: match the smallest unique anchor (a single line), never a whole block you do not intend to change; read the file back after every edit.
+
+**2. RateLimit "refills proportionally" spec case was wrong on first draft**
+
+It consumed once from a capacity-5 bucket then asserted two post-refill consumes + a rejection — but the bucket still held 4 tokens, so the rejection assertion would never fire. Fixed by draining the bucket first (5 consumes at `t=0`), so the `t=2` window yields exactly 2 tokens. Lesson: trace token arithmetic by hand for every spec case before trusting it — RED specs are only as good as their math.
+
+**3. selene `roblox_manual_fromscale_or_fromoffset` on the test view**
+
+Two warnings for offset-only `UDim2.new(0, …)` calls in `MirrorTestView.makeLabel`; applied the suggested `UDim2.fromOffset` form → `0 errors, 0 warnings, 0 parse errors`. Cheap to keep the lint silent from the first commit.
+
 ### Completion Notes List
+
+**Technical approach**
+
+- Implemented strictly in story-task order with RED-first specs for the two pure shared modules: `Validate.spec` + `RateLimit.spec` written against not-yet-existing modules (grep-confirmed absent = RED), then `Validate.noArgs`, the token bucket, and `GameConfig` numbers added (GREEN). Spec-case math hand-traced (Debug Log #2).
+- Pipeline per story contract: rate limit → gate (`DataService.hasSession`, new registry-only lookup) → `pcall(handler)`. Handlers validate their own payloads, matching the architecture's verbatim registration example. `RequestSnapshot`'s handler is registered in `init.server` next to the gate push it serves; `RemoteService` stays a generic pipeline.
+- Reliable delivery (AC6) is connect-then-request on the client: the `OnClientEvent` connection is made before `RequestSnapshot:FireServer()`, so every gate/client-start ordering ends with a snapshot in the mirror. Gate push (now via `RemoteService.pushSnapshot`) stays the primary path.
+- Rejections log server-side and stay silent client-side (Decision 7 vs AC3 resolved as designed); only the `pcall` fault path fires `Notify` with the architecture's generic message.
+- Rate-limit buckets are nested `_profiles`-style (`buckets[userId][remoteName]`), dropped wholesale by `releasePlayer` from the existing `PlayerRemoving` connection — no second connection, explicit ordering.
+
+**Verification evidence**
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Format gate | `stylua --check src/ tests/` | green (after Task 9.1 format pass) |
+| Lint gate | `selene src/` | `0 errors, 0 warnings, 0 parse errors` (after `fromOffset` fix) |
+| Production build | `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` | exit 0 |
+| Test place build | `rojo build tests.project.json` | exit 0 (throwaway probe deleted after) |
+| Artifact probes | `rg -c` on the built place | `RemoteService` 32, `RequestSnapshot` 6, `StateMirror` 14, `Notify` 3, `remoteRateCapacity` 2 |
+| Boundary rule 3 | `rg OnServerEvent src/` | exactly 1 `Connect`, inside `RemoteService.register` |
+| TestEZ | Studio `TestBootstrap:run` (USER, outstanding — Task 8.3/10.2) | ⏳ 25 inherited + 9 new `it` blocks await execution |
+| Studio Play | round trip + rate-limit probe (USER, outstanding — Task 10.1) | ⏳ view `— / —` → `0 / 8`, `RATE_LIMITED` lines |
+| Sourcemap | `rojo sourcemap default.project.json -o sourcemap.json` | regenerated for the 5 new modules |
+
+**Acceptance criteria mapping**
+
+- **AC1** — pipeline order `rate limit → hasSession → pcall(handler)`; all three gates run before any handler body can affect state ✅ (code + structural verification)
+- **AC2** — per-player per-remote token bucket from frozen `GameConfig` (15/5s); `false` drops immediately, no queue field anywhere ✅ (code + TestEZ-written, Studio execution outstanding)
+- **AC3** — `RATE_LIMITED` / `NO_ACTIVE_PROFILE` / `INVALID_PAYLOAD` → one `Log.warn` each with `{player, remote, reason}`; no client signal on any reject path; fault → `Log.error` + generic `Notify` ✅ (code-verified; Output evidence needs Studio Play)
+- **AC4** — pre-gate/post-session requests refused at the gate check before `pcall`; nil-snapshot guard in the handler fails closed ✅ (code-verified)
+- **AC5** — `StateMirror` deep-freezes on `apply`; only `apply` writes; test view reads `get()` only; `initialSnapshot` holder deleted ✅ (code-verified)
+- **AC6** — connect-before-fire client order + retained gate push; idempotent overwrite; closes the 1.3 deferred item (bullet stays in `deferred-work.md` until Play verifies) ✅ (code-verified, Play outstanding)
+- **AC7** — `MirrorTestView` renders `Vault: {used} / {capacity}` + `Items: {count}` from mirror only, placeholder pre-snapshot ✅ (structure-verified; live render needs Studio Play)
+- **AC8** — 3 `Validate.noArgs` + 6 `RateLimit` `it` blocks written ⏳ Studio execution outstanding (8.3/10.2)
 
 ### File List
 
 **Created (this story):**
 
+- `src/shared/Validate.luau` — pure payload validators (`noArgs` → `INVALID_PAYLOAD`)
+- `src/shared/RateLimit.luau` — pure token bucket (`newBucket`, `tryConsume`, explicit `now`)
+- `src/server/Services/RemoteService.luau` — registry + rate limit + gate + pcall + `pushSnapshot`/`notify`/`releasePlayer`
+- `src/client/Controllers/StateMirror.luau` — frozen read-only mirror + `onChange` (deepFreeze moved in)
+- `src/client/Controllers/MirrorTestView.luau` — temporary AC7 proof view (1.5 rehomes it)
+- `tests/Validate.spec.luau` — 3 cases
+- `tests/RateLimit.spec.luau` — 6 cases
+
 **Modified:**
+
+- `src/shared/Types.luau` — added `export type ErrorCode = string` (+ scope comment)
+- `src/shared/Config/GameConfig.luau` — added `remoteRateCapacity = 15`, `remoteRateRefillPerSecond = 5` (+ owner comments)
+- `src/server/Services/DataService.luau` — added `hasSession` registry lookup only
+- `src/server/init.server.luau` — `RemoteService.init()` + `RequestSnapshot` registration in `Init()`; gate push via `pushSnapshot`; `releasePlayer` in `PlayerRemoving`; deleted inline Remotes/`Snapshot` bootstrap; 1.3 gate logic otherwise untouched
+- `src/client/init.client.luau` — StateMirror wiring, connect-then-request order, deleted `initialSnapshot` holder and local `deepFreeze`
+- `skills/implementation-artifacts/1-4-validated-remote-pipeline-and-read-only-mirror.md` — checkboxes, Dev Agent Record, File List, Change Log, Status
+- `skills/implementation-artifacts/sprint-status.yaml` — `1-4-...` `ready-for-dev` → `in-progress`
 
 **Deleted:**
 
+- (none — `initialSnapshot`/`deepFreeze` were locals absorbed into `StateMirror`, not files)
+
 **Generated (gitignored, not tracked):**
+
+- `secure-data-and-inventory-system.rbxlx`, `sourcemap.json` (regenerated for the 5 new modules)
 
 ### Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-10-01 | Story created from epics 1.4 + architecture Remote Handler Pipeline / Read-only Mirror / Networking + 1.3's deferred reliable-delivery item (AC6); branch `feat/story-1-4-validated-remote-pipeline` created. |
+| 2026-10-01 | Dev implemented: `Validate` + `RateLimit` (RED-first specs), GameConfig budgets, `RemoteService` pipeline, `DataService.hasSession`, server rewiring, `StateMirror` + client connect-then-request, `MirrorTestView`, 9 new spec cases; gates green (`stylua`, `selene` 0/0/0, both Rojo builds); boundary rule 3 structurally verified (single `OnServerEvent`); sourcemap regenerated. Studio TestEZ + Play are outstanding human steps (8.3/10.1/10.2). Status `ready-for-dev` → `in-progress`. |
