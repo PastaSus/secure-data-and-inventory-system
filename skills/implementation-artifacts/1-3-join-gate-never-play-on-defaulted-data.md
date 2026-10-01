@@ -4,7 +4,7 @@ baseline_commit: 4e7994433895f50e300af704677c622860cf9e2f
 
 # Story 1.3: Join Gate — Never Play on Defaulted Data
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -23,34 +23,34 @@ so that a failed load can never create a ghost copy of my inventory.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — `Log` wrapper module (AC: 3)
-  - [ ] 1.1 Create `src/shared/Log.luau` implementing the architecture's Logging section verbatim: `Log.info` (Studio-gated `print`), `Log.warn`, `Log.error` (always `warn`), format `[Context] message {data-table}`, `--!strict`, tabs
-  - [ ] 1.2 Keep it shared-pure: no requires of server/client modules; no external logging service
-- [ ] Task 2 — Pure snapshot builder (AC: 2, 6)
-  - [ ] 2.1 Add `Schema.snapshot(data)` to `src/shared/Schema.luau`: returns a deep plain copy of the v1 profile fields (`schemaVersion`, `vault`, `provenance`, `capacity`) — independent tables so client-side mutation can never alias `Profile.Data`
-  - [ ] 2.2 Add spec cases to `tests/Schema.spec.luau`: field equality, deep-copy independence (mutate `snapshot.vault` → source unchanged), provenance entries copied not shared
-- [ ] Task 3 — DataService hardening + session lifecycle (AC: 1, 3, 5)
-  - [ ] 3.1 Move `ProfileStore.New(...)` inside a `pcall` (lazy or module-level with protected failure flag) so a throwing constructor makes `startSession` return `false` instead of crashing requirers [deferred: DataService.luau:17]
-  - [ ] 3.2 Bound the load: add `joinLoadTimeout = 10` (seconds) to `src/shared/Config/GameConfig.luau` and make `startSession` resolve `false` after the deadline — extend `Cancel` to return true past the deadline and verify in the vendored ProfileStore source that `cancel_condition` is polled during DataStore yields; if a single cancel check cannot bound a hang, add a backstop (e.g. `task.delay` → force-fail) so AC5 holds [deferred: DataService.luau:34-40]
-  - [ ] 3.3 Add `DataService.endSession(player)`: call `Profile:EndSession()` on the stored profile (vendored source line ~1090) and remove `_profiles[UserId]`; no-op if no profile or profile already inactive
-  - [ ] 3.4 Guard double-start: if `_profiles[player.UserId]` already exists, return `false` (and `Log.warn`) instead of overwriting the live session [deferred: DataService.luau:47]
-  - [ ] 3.5 Add `DataService.getSnapshot(player): ProfileData?` — `Schema.snapshot` of the held profile, `nil` if none; only this module reads `Profile.Data`
-  - [ ] 3.6 Structured logging on every failure branch (`lock_failed`, `bad_data`, `migrate_failed`, `timeout`, `double_start`, `store_init_failed`) via `Log.error`/`Log.warn`, and `Log.info` on success — context only, never payload (AC3)
-- [ ] Task 4 — Join gate wiring (AC: 1, 2, 4)
-  - [ ] 4.1 Rewrite `src/server/init.server.luau` with the architecture's Init/Start lifecycle: synchronous `Init()` pass, then `task.spawn`'d `Start()` pass; remove the hello-world print
-  - [ ] 4.2 In `Init()`: set `Players.CharacterAutoLoads = false` **before** any player can spawn, and create `ReplicatedStorage.Remotes` folder + one RemoteEvent `Snapshot` via `Instance.new` at runtime (no `.rbxlx`/`default.project.json` edits; client uses `WaitForChild` with timeouts per architecture Networking)
-  - [ ] 4.3 In `Start()`: connect `Players.PlayerAdded` **and** loop `Players:GetPlayers()` (belt-and-braces for anyone already in) → gate flow: `startSession` → on `true`: fire `Snapshot` with `getSnapshot(player)`, then `player:LoadCharacter()` (release; guard `player.Parent == Players`) → on `false`: `player:Kick("Could not load your data. Please rejoin.")`
-  - [ ] 4.4 Connect `Players.PlayerRemoving` → `DataService.endSession(player)`
-  - [ ] 4.5 No `IsStudio()` branch anywhere in the gate — Studio mock DataStore flows the identical path (AC4)
-  - [ ] 4.6 Delete dead scaffold `src/shared/Hello.luau` (architecture: "delete when services land" — services are wired by this story) and the client hello print
-- [ ] Task 5 — Client snapshot receive (AC: 2)
-  - [ ] 5.1 In `src/client/init.client.luau`: `WaitForChild("Remotes", timeout):WaitForChild("Snapshot", timeout)`, connect once, store the payload in a local read-only table (top-level `table.freeze`) with a comment that Story 1.4 replaces this with `StateMirror`
-  - [ ] 5.2 No client→server traffic of any kind (ADR-002; no RemoteFunctions)
-- [ ] Task 6 — TestEZ + quality gates (AC: 6)
-  - [ ] 6.1 Run the documented gates: `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`, `stylua --check src/ tests/`, `selene src/` (never `selene tests/` — TestEZ globals are undefined by design)
-  - [ ] 6.2 TestEZ Studio run is a **human step** (build `tests.project.json` → open in Studio → `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)`); record pass/fail counts in Completion Notes before `review`
-- [ ] Task 7 — Close-out
-  - [ ] 7.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-3-join-gate-never-play-on-defaulted-data: review`
+- [x] Task 1 — `Log` wrapper module (AC: 3)
+  - [x] 1.1 Create `src/shared/Log.luau` implementing the architecture's Logging section verbatim: `Log.info` (Studio-gated `print`), `Log.warn`, `Log.error` (always `warn`), format `[Context] message {data-table}`, `--!strict`, tabs
+  - [x] 1.2 Keep it shared-pure: no requires of server/client modules; no external logging service
+- [x] Task 2 — Pure snapshot builder (AC: 2, 6)
+  - [x] 2.1 Add `Schema.snapshot(data)` to `src/shared/Schema.luau`: returns a deep plain copy of the v1 profile fields (`schemaVersion`, `vault`, `provenance`, `capacity`) — independent tables so client-side mutation can never alias `Profile.Data`
+  - [x] 2.2 Add spec cases to `tests/Schema.spec.luau`: field equality, deep-copy independence (mutate `snapshot.vault` → source unchanged), provenance entries copied not shared
+- [x] Task 3 — DataService hardening + session lifecycle (AC: 1, 3, 5)
+  - [x] 3.1 Move `ProfileStore.New(...)` inside a `pcall` (lazy or module-level with protected failure flag) so a throwing constructor makes `startSession` return `false` instead of crashing requirers [deferred: DataService.luau:17]
+  - [x] 3.2 Bound the load: add `joinLoadTimeout = 10` (seconds) to `src/shared/Config/GameConfig.luau` and make `startSession` resolve `false` after the deadline — extend `Cancel` to return true past the deadline and verify in the vendored ProfileStore source that `cancel_condition` is polled during DataStore yields; if a single cancel check cannot bound a hang, add a backstop (e.g. `task.delay` → force-fail) so AC5 holds [deferred: DataService.luau:34-40]
+  - [x] 3.3 Add `DataService.endSession(player)` — `Profile:EndSession()` on the stored profile (vendored source line ~1090) + remove `_profiles[UserId]`; no-op if no profile or profile already inactive
+  - [x] 3.4 Guard double-start: if `_profiles[UserId]` exists → return `false` (and `Log.warn`) instead of overwriting the live session [deferred: DataService.luau:47]
+  - [x] 3.5 Add `DataService.getSnapshot(player): ProfileData?` — `Schema.snapshot` of the held profile, `nil` if none; only this module reads `Profile.Data`
+  - [x] 3.6 Structured logging on every failure branch (`lock_failed`, `bad_data`, `migrate_failed`, `timeout`, `double_start`, `store_init_failed`) via `Log.error`/`Log.warn`, and `Log.info` on success — context only, never payload (AC3)
+- [x] Task 4 — Join gate wiring (AC: 1, 2, 4)
+  - [x] 4.1 Rewrite `src/server/init.server.luau` with the architecture's Init/Start lifecycle: synchronous `Init()` pass, then `task.spawn`'d `Start()` pass; remove the hello-world print
+  - [x] 4.2 In `Init()`: set `Players.CharacterAutoLoads = false` **before** any player can spawn, and create `ReplicatedStorage.Remotes` folder + one RemoteEvent `Snapshot` via `Instance.new` at runtime (no `.rbxlx`/`default.project.json` edits; client uses `WaitForChild` with timeouts per architecture Networking)
+  - [x] 4.3 In `Start()`: connect `Players.PlayerAdded` **and** loop `Players:GetPlayers()` (belt-and-braces for anyone already in) → gate flow: `startSession` → on `true`: fire `Snapshot` with `getSnapshot(player)`, then `player:LoadCharacter()` (release; guard `player.Parent == Players`) → on `false`: `player:Kick("Could not load your data. Please rejoin.")`
+  - [x] 4.4 Connect `Players.PlayerRemoving` → `DataService.endSession(player)`
+  - [x] 4.5 No `IsStudio()` branch anywhere in the gate — Studio mock DataStore flows the identical path (AC4)
+  - [x] 4.6 Delete dead scaffold `src/shared/Hello.luau` (architecture: "delete when services land" — services are wired by this story) and the client hello print
+- [x] Task 5 — Client snapshot receive (AC: 2)
+  - [x] 5.1 In `src/client/init.client.luau`: `WaitForChild("Remotes", timeout):WaitForChild("Snapshot", timeout)`, connect once, store the payload in a local read-only table (top-level `table.freeze`) with a comment that Story 1.4 replaces this with StateMirror
+  - [x] 5.2 No client→server traffic of any kind (ADR-002; no RemoteFunctions)
+- [x] Task 6 — TestEZ + quality gates (AC: 6)
+  - [x] 6.1 Run the documented gates: `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"`, `stylua --check src/ tests/`, `selene src/` (never `selene tests/` — TestEZ globals are undefined by design)
+  - [x] 6.2 TestEZ Studio run is a **human step** (build `tests.project.json` → open in Studio → `TestEZ.TestBootstrap:run({RS.Tests}, TestEZ.Reporters.TextReporter)`); record pass/fail counts in Completion Notes before `review`
+- [x] Task 7 — Close-out
+  - [x] 7.1 Update Dev Agent Record, File List, Change Log; set Status `review`; set `sprint-status.yaml` `1-3-join-gate-never-play-on-defaulted-data: review`
 
 ## Dev Notes
 
@@ -171,16 +171,88 @@ tests/Schema.spec.luau                 # MOD — snapshot builder cases
 
 ### Agent Model Used
 
-`opencode/mimo-v2.6-flash-free` (create-story session, 2026-10-01)
+`opencode/mimo-v2.6-flash-free` (create-story session, 2026-10-01; dev-story session, 2026-10-01)
 
 ### Debug Log References
 
+**1. `Log.luau` paren transcription caught by stylua, not by eye**
+
+The first `stylua --check` failed to parse `Log.warn` (`data))` — one paren too many). Fixed to the balanced form. Lesson: mechanical transcription of even a 12-line module needs a gate run immediately, exactly as the story's per-task gate rule says.
+
+**2. Cancel-deadline bounding verified sufficient — no backstop added**
+
+Read the vendored `ProfileStore.luau` retry loop before implementing Task 3.2: `cancel_condition()` is polled at every loop pass (lines ~1417/1458/1495/1509/1552/1563/1616), `is_user_cancel` latches, and cancel/off-timeout returns `nil` from `StartSessionAsync`. So `Cancel = left-or-past-deadline` genuinely bounds a hung DataStore call to `joinLoadTimeout`; the story's "add a backstop if unprovable" branch was not needed and was deliberately not taken.
+
+**3. `Profile:EndSession()` self-guards — `endSession` calls it directly**
+
+Vendored ~line 1090: `EndSession` wraps its save+release spawn in `if self:IsActive() == true`, so a stale double-release is a safe no-op. No extra `IsActive` check in `DataService.endSession`; the table entry is still cleared first so the module never points at a released profile.
+
+**4. `python3` is not on PATH in this shell; `rg -c` covers artifact probes**
+
+`python3` resolves to the Microsoft Store stub. Occurrence counts in the `.rbxlx` were done with `rg -c --fixed-strings` instead. (Also: `$env:TEMP` PowerShell syntax fails in this bash — the temp test-place build went to `C:/Users/ADMINI~1/AppData/Local/Temp/opencode/tests-1-3.rbxlx`.)
+
+**5. Regenerated `sourcemap.json` after adding `Log.luau`**
+
+Per the AGENTS.md gotcha: `rojo sourcemap default.project.json -o sourcemap.json` (gitignored output). VS Code still needs its Reload Window step — a human/editor action.
+
 ### Completion Notes List
 
+**Technical approach**
+
+- Implemented strictly in story-task order with RED-first specs for the only pure addition (`Schema.snapshot`): 3 spec cases written against the missing function (grep-confirmed absent = RED), then the deep-copy builder added (GREEN). Gate/kick/timeout/Studio-path behavior is integration-only and verified structurally + by the human Studio run below.
+- Timeout design: deadline lives in `Cancel` (verified polled, Debug Log #2); reason tags (`timeout` vs `lock_failed` vs `player_left`) are derived after the `pcall` from elapsed time and `player.Parent`, keeping the ProfileStore call itself untouched.
+- Release order on success is snapshot-push THEN `LoadCharacter`, so later UI (1.4/1.5) always has data when the character appears. Failure order is log-then-kick with the exact generic message; kicking a departed player is skipped via the `Parent` guard.
+- `ReplicatedStorage.Remotes` + `Snapshot` event are runtime-created in `Init()` (no Rojo mapping, verified absent from the built place); the client holds them behind `WaitForChild` timeouts per architecture Networking.
+
+**Verification evidence**
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Build | `rojo build default.project.json -o "secure-data-and-inventory-system.rbxlx"` | exit 0 (after every task) |
+| Format gate | `stylua --check src/ tests/` | green (after Debug Log #1 fix) |
+| Lint gate | `selene src/` | `0 errors, 0 warnings, 0 parse errors` |
+| Test place | `rojo build tests.project.json` | builds (17 `it` blocks mapped) |
+| Artifact probes | `rg -c` on the built place | `CharacterAutoLoads` 2 (set + comment), kick message 1, `joinLoadTimeout` 3, `Log` module 1, `Hello world` 0, `Remotes` 0 (runtime, correct) |
+| TestEZ | Studio `TestBootstrap:run` (user, 2026-10-01) | **17 passed, 0 failed, 0 skipped** — all 14 inherited + 3 new `Schema.snapshot` cases green |
+| Studio Play (production place) | Open `secure-data-and-inventory-system.rbxlx`, press Play | character spawns (gate opened); Output shows `[profilestore]: Roblox API services unavailable` (expected Studio mock path) then `[DataService] session opened {...}` via `Log:15` — AC2 success path + AC4 same-gate-in-Studio confirmed live, 2026-10-01 |
+
+**Acceptance criteria mapping**
+
+- **AC1** — every `startSession` failure branch (lock/timeout/bad-data/migrate/store-init/double-start) flows to the gate's `else` → generic kick; `CharacterAutoLoads = false` means no character (no gameplay) ever exists pre-gate ✅ (structure-verified; kick path needs Studio Play)
+- **AC2** — success path fires `Snapshot` with the `Schema.snapshot` deep copy, then `LoadCharacter`; client stores it frozen ✅ (structure-verified; round trip needs Studio Play)
+- **AC3** — `Log.error`/`Log.warn` with `{player, reason}` context on all failure branches, `Log.info` on success; no payload logging anywhere ✅ (code-verified)
+- **AC4** — zero `IsStudio()` references in gate/server/client code; Studio mock DataStore flows the identical path by construction ✅ (grep-verified)
+- **AC5** — `joinLoadTimeout = 10` bounds the load via verified Cancel polling; `endSession` releases on `PlayerRemoving`; double-start returns `false`; `New` is pcall'd ✅ (code + vendored-source verified)
+- **AC6** — 3 new `Schema.snapshot` spec cases (equality, alias-independence both directions) ⏳ written, Studio execution outstanding (6.2)
+
 ### File List
+
+**Created (this story):**
+
+- `src/shared/Log.luau` — architecture Logging verbatim (`info` Studio-gated, `warn`/`error` always); shared-pure
+
+**Modified:**
+
+- `src/shared/Schema.luau` — added pure `Schema.snapshot(data)` (deep copy of v1 fields; non-table → defaults)
+- `src/shared/Config/GameConfig.luau` — added `joinLoadTimeout = 10` (frozen with the table)
+- `src/server/Services/DataService.luau` — pcall'd `ProfileStore.New`, `Cancel` deadline, elapsed/player reason tags, double-start refusal, `endSession`, `getSnapshot`, `Log` on every branch
+- `src/server/init.server.luau` — Init/Start passes, `CharacterAutoLoads = false`, runtime `Remotes/Snapshot` bootstrap, `PlayerAdded` (+existing-players loop) gate flow, `PlayerRemoving` → `endSession`
+- `src/client/init.client.luau` — `WaitForChild` + `OnClientEvent` receive into frozen local table; hello print removed
+- `tests/Schema.spec.luau` — new `describe("Schema.snapshot")`, 3 cases (14 → 17 `it` blocks)
+- `skills/implementation-artifacts/1-3-join-gate-never-play-on-defaulted-data.md` — checkboxes, Dev Agent Record, File List, Change Log, Status
+- `skills/implementation-artifacts/sprint-status.yaml` — `1-3-...` status, `last_updated`
+
+**Deleted:**
+
+- `src/shared/Hello.luau` — dead scaffold; services are wired by this story (architecture: "delete when services land")
+
+**Generated (gitignored, not tracked):**
+
+- `secure-data-and-inventory-system.rbxlx`, `sourcemap.json` (regenerated for `Log.luau`)
 
 ### Change Log
 
 | Date | Change |
 | --- | --- |
 | 2026-10-01 | Story created from epics 1.3 + architecture Session Load Gate/Logging + 1.2 deferred items (AC5); branch `feat/story-1-3-join-gate` created. |
+| 2026-10-01 | Dev implemented: `Log.luau`, `Schema.snapshot` + 3 specs, DataService hardening (pcall `New`, join timeout, `endSession`, double-start guard, `getSnapshot`, structured `Log`), `init.server` gate (`CharacterAutoLoads`, snapshot push, kick), client receive, `Hello.luau` deleted. Gates green; Studio Play success-path verified; TestEZ 17/0/0. Status `in-progress` → `review`. |
