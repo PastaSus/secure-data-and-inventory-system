@@ -126,22 +126,19 @@ local function deepCopy(value: any): any
 	return copy
 end
 
--- snapshot returns a plain deep copy of a migrated profile: field values
--- only, no shared references. The copy DataService hands to the wire must
--- never alias Profile.Data, so client-side mutation can never touch the
--- server's authoritative table. Call only with migrated data (the gate
--- runs migrate first and refuses to continue on failure).
-function Schema.snapshot(data: Types.ProfileData): Types.ProfileData
+-- snapshot returns a plain deep copy of a migrated profile: the whole
+-- table, values only, no shared references. Copying everything (rather
+-- than a fixed key allowlist) keeps the wire in step with future forward
+-- migrations automatically; ProfileData holds player data only, so there
+-- is no server-only field to leak (server-only content lives in
+-- ServerStorage per architecture). Non-table input returns nil — the gate
+-- treats nil as "closed" and kicks, never defaults. Call only with
+-- migrated data (the gate runs migrate first and refuses on failure).
+function Schema.snapshot(data: Types.ProfileData): Types.ProfileData?
 	if type(data) ~= "table" then
-		return Schema.defaultProfile()
+		return nil
 	end
-	local source: any = data
-	return {
-		schemaVersion = source.schemaVersion,
-		vault = deepCopy(source.vault),
-		provenance = deepCopy(source.provenance),
-		capacity = source.capacity,
-	}
+	return deepCopy(data)
 end
 
 return Schema

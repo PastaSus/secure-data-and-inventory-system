@@ -33,6 +33,15 @@ local DataService = {}
 
 local _profiles: { [number]: any } = {}
 
+-- Releases a live profile without touching the registry. Wrapped in pcall:
+-- Decision 14 requires containment at every DataStore-adjacent boundary,
+-- and the save `EndSession` triggers runs DataStore I/O.
+local function releaseLive(profile: any): ()
+	pcall(function()
+		profile:EndSession()
+	end)
+end
+
 function DataService.profileKey(userId: number): string
 	return KEY_PREFIX .. tostring(userId)
 end
@@ -77,6 +86,10 @@ function DataService.startSession(player: Player): boolean
 	end
 
 	if type(profile.Data) ~= "table" then
+		-- The lock is already held here but the profile is unusable and
+		-- will never be registered: release it so the kicked player's
+		-- rejoin does not hit a lock conflict.
+		releaseLive(profile)
 		Log.error("DataService", "session start failed", { player = player.UserId, reason = "bad_data" })
 		return false
 	end
@@ -85,6 +98,10 @@ function DataService.startSession(player: Player): boolean
 		Schema.migrate(profile.Data)
 	end)
 	if not migrateOk then
+		-- Same leak as above: migrate threw (possibly after partial
+		-- in-place mutation — harmless, the next join re-migrates
+		-- idempotently), so release before failing closed.
+		releaseLive(profile)
 		Log.error("DataService", "session start failed", { player = player.UserId, reason = "migrate_failed" })
 		return false
 	end
@@ -101,7 +118,7 @@ function DataService.endSession(player: Player): ()
 	local profile = _profiles[player.UserId]
 	_profiles[player.UserId] = nil
 	if profile ~= nil then
-		profile:EndSession()
+		releaseLive(profile)
 	end
 end
 
