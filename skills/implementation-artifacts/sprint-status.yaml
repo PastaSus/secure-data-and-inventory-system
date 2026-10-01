@@ -47,7 +47,7 @@ development_status:
   1-1-project-structure-on-the-existing-scaffold: done
   1-2-session-locked-profile-load: done
   1-3-join-gate-never-play-on-defaulted-data: done
-  1-4-validated-remote-pipeline-and-read-only-mirror: backlog
+  1-4-validated-remote-pipeline-and-read-only-mirror: ready-for-dev
   1-5-main-menu-entry: backlog
   epic-1-retrospective: optional
 
