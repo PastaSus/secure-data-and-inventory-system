@@ -86,7 +86,7 @@ local function makeButton(parent: Instance, name: string, text: string, position
 	return button
 end
 
-local function onPlaceholder(entry: string): ()
+local function onPlaceholder(entry: string): () -> ()
 	return function(): ()
 		setText(noteLabel, ("%s: %s"):format(entry, PLACEHOLDER_NOTE))
 		Log.info("MainMenu", "placeholder entry activated", { entry = entry })
@@ -133,9 +133,9 @@ function MainMenuController.start(): ()
 	local tradeButton = makeButton(menu, "TradeEntry", "Trade", UDim2.fromScale(0.72, 0.6), UDim2.fromScale(0.4, 0.1))
 	local diveButton = makeButton(menu, "DiveEntry", "Dive", UDim2.fromScale(0.5, 0.8), UDim2.fromScale(0.7, 0.12))
 
-	vaultButton.Activated:Connect(onPlaceholder("Vault")())
-	tradeButton.Activated:Connect(onPlaceholder("Trade")())
-	diveButton.Activated:Connect(onPlaceholder("Dive")())
+	vaultButton.Activated:Connect(onPlaceholder("Vault"))
+	tradeButton.Activated:Connect(onPlaceholder("Trade"))
+	diveButton.Activated:Connect(onPlaceholder("Dive"))
 
 	StateMirror.onChange(render)
 	render()
