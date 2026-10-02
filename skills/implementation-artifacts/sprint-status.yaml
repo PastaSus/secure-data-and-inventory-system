@@ -52,8 +52,8 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Dive & Stow — The Core Loop Works
-  epic-2: backlog
-  2-1-seeded-procedural-room-assembly: backlog
+  epic-2: in-progress
+  2-1-seeded-procedural-room-assembly: ready-for-dev
   2-2-rarity-table-loot-rolls: backlog
   2-3-pack-capacity-and-grab: backlog
   2-4-extraction-voluntary-and-forced: backlog
