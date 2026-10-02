@@ -5,12 +5,14 @@
 -- fired once, AFTER the Snapshot listener is connected, so a gate push
 -- that raced ahead of this script is recovered by the request path.
 -- No other client-to-server traffic exists (ADR-002; no RemoteFunctions).
+-- Story 1.5: the started view is MainMenuController (the 1.4 proof view
+-- is rehomed inside the menu); bootstrap order is otherwise unchanged.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Log = require(ReplicatedStorage.Shared.Log)
 local StateMirror = require(script.Controllers.StateMirror)
-local MirrorTestView = require(script.Controllers.MirrorTestView)
+local MainMenuController = require(script.Controllers.MainMenuController)
 
 local REMOTES_FOLDER_NAME = "Remotes"
 local SNAPSHOT_EVENT_NAME = "Snapshot"
@@ -28,7 +30,7 @@ else
 		snapshotEvent.OnClientEvent:Connect(function(...: any): ()
 			StateMirror.apply(...)
 		end)
-		MirrorTestView.start()
+		MainMenuController.start()
 		local requestEvent = remotes:WaitForChild(REQUEST_EVENT_NAME, WAIT_TIMEOUT_SECONDS)
 		if requestEvent ~= nil and requestEvent:IsA("RemoteEvent") then
 			requestEvent:FireServer()
